@@ -170,6 +170,31 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
 
         self.assertEqual(calls, [0.05])
 
+    def test_http_fetcher_recalculates_the_budget_after_waiting_for_a_request_slot(self) -> None:
+        calls = []
+
+        class Response:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return {"id": "10"}
+
+        fetcher = TdnHttpFetcher(
+            "https://example.test/rest/api", timeout_seconds=20,
+            get=lambda _url, timeout: calls.append(timeout) or Response(),
+        )
+        self.assertTrue(fetcher._request_slot.acquire())
+        deadline = time.monotonic() + 0.1
+        release = threading.Timer(0.02, fetcher._request_slot.release)
+        release.start()
+        try:
+            self.assertEqual(fetcher("10", remaining_timeout=lambda: deadline - time.monotonic()), {"id": "10"})
+        finally:
+            release.join(timeout=1)
+
+        self.assertLess(calls[0], 0.09)
+
     def test_http_fetcher_requests_child_pages_with_the_same_timeout(self) -> None:
         calls = []
 
@@ -289,7 +314,7 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
             {"results": [{"id": "11"}], "_links": {"next": "/rest/api/content/10/child/page?limit=50&start=1"}},
             {"results": [{"id": "12"}], "_links": {}},
         ]
-        remaining = iter([8.0, 3.0])
+        remaining = iter([8.0, 8.0, 3.0, 3.0])
         fetcher = TdnHttpFetcher(
             "https://example.test/rest/api", timeout_seconds=20,
             get=lambda url, timeout: calls.append((url, timeout)) or Response(payloads.pop(0)),

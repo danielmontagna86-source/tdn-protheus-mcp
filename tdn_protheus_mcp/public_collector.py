@@ -145,16 +145,15 @@ class TdnHttpFetcher:
     def _request_json(
         self, url: str, *, remaining_timeout: Callable[[], float | None] | None = None
     ) -> dict[str, Any]:
-        timeout = self._timeout_seconds
-        if remaining_timeout is not None:
-            remaining = remaining_timeout()
-            if remaining is not None:
-                if remaining <= 0:
-                    raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
-                timeout = min(timeout, remaining)
+        timeout = self._request_budget(remaining_timeout)
         outcome: Queue[tuple[dict[str, Any] | None, Exception | None]] = Queue(maxsize=1)
         if not self._request_slot.acquire(timeout=timeout):
             raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
+        try:
+            timeout = self._request_budget(remaining_timeout)
+        except Exception:
+            self._request_slot.release()
+            raise
 
         def request() -> None:
             try:
@@ -168,7 +167,11 @@ class TdnHttpFetcher:
             finally:
                 self._request_slot.release()
 
-        threading.Thread(target=request, daemon=True).start()
+        try:
+            threading.Thread(target=request, daemon=True).start()
+        except Exception:
+            self._request_slot.release()
+            raise
         try:
             data, error = outcome.get(timeout=timeout)
         except Empty as error:
@@ -180,6 +183,16 @@ class TdnHttpFetcher:
         if not isinstance(data, dict):
             raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", "o endpoint TDN retornou uma resposta inválida")
         return data
+
+    def _request_budget(self, remaining_timeout: Callable[[], float | None] | None) -> float:
+        timeout = self._timeout_seconds
+        if remaining_timeout is not None:
+            remaining = remaining_timeout()
+            if remaining is not None:
+                if remaining <= 0:
+                    raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
+                timeout = min(timeout, remaining)
+        return timeout
 
     def __call__(
         self, page_id: str, *, remaining_timeout: Callable[[], float | None] | None = None
