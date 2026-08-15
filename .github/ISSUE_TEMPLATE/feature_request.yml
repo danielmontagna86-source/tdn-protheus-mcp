@@ -1,0 +1,20 @@
+name: Sugestão de melhoria
+description: Proponha uma melhoria para o código ou documentação.
+title: "[Melhoria]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: "Não anexe conteúdo TDN, dados privados ou credenciais."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema que a melhoria resolve
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposta
+    validations:
+      required: true

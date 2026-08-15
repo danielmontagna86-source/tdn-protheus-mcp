@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python 3.11 on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install validation dependencies
+        run: python -m pip install --upgrade pip && python -m pip install ".[snapshot]" build twine cyclonedx-bom
+      - name: Run tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Verify generic MCP stdio client interface
+        run: python examples/mcp_smoke_client.py --help
+      - name: Build and validate Python distributions
+        run: python -m build && python -m twine check dist/*.whl dist/*.tar.gz
+      - name: Generate SBOM
+        run: python -m cyclonedx_py environment --output-file dist/sbom.cdx.json --of JSON
+      - name: Upload release candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: distributions-${{ matrix.os }}
+          path: dist/

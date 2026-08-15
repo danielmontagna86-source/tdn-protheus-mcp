@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tdn-protheus-mcp"
+version = "0.3.0"
+description = "Local and cited MCP access to a user-controlled TDN Protheus snapshot."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Daniel Montagna" }]
+keywords = ["mcp", "protheus", "totvs", "tdn", "advpl"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = ["mcp>=1.0,<2"]
+
+[project.optional-dependencies]
+snapshot = [
+    "requests>=2.31,<3",
+    "beautifulsoup4>=4.12,<5",
+    "langchain-text-splitters>=0.3,<2",
+]
+
+[project.urls]
+Homepage = "https://github.com/danielmontagna86-source/tdn-protheus-mcp"
+Repository = "https://github.com/danielmontagna86-source/tdn-protheus-mcp"
+Issues = "https://github.com/danielmontagna86-source/tdn-protheus-mcp/issues"
+
+[project.scripts]
+tdn-protheus-mcp = "tdn_protheus_mcp.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["tdn_protheus_mcp*"]
+
+[tool.unittest]
+start-directory = "tests"
+pattern = "test_*.py"

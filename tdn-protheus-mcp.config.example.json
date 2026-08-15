@@ -1,0 +1,10 @@
+{
+  "cache_root": "./tdn-cache",
+  "allowed_root_ids": ["235312129"],
+  "offline": true,
+  "allow_mutations": false,
+  "max_results": 20,
+  "max_chars": 24000,
+  "tdn_api_base": "https://tdn.totvs.com/rest/api",
+  "refresh_timeout_seconds": 900
+}

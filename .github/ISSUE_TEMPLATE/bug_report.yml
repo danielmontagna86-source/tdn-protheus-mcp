@@ -1,0 +1,27 @@
+name: Relato de defeito
+description: Informe um problema reproduzível do código do kit.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Não inclua credenciais, dados de clientes ou conteúdo coletado do TDN."
+  - type: input
+    id: version
+    attributes:
+      label: Versão
+      description: Tag de release ou commit afetado.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado e observado
+    validations:
+      required: true
