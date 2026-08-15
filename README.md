@@ -16,8 +16,8 @@ O código usa Apache-2.0. A licença não transfere direitos sobre conteúdo, ma
 Depois da publicação no PyPI:
 
 ```bash
-uvx --from tdn-protheus-mcp tdn-protheus-mcp doctor --config ./tdn-protheus-mcp.config.json --json
-uvx --from tdn-protheus-mcp tdn-protheus-mcp index --config ./tdn-protheus-mcp.config.json --root-id 235312129 --json
+uvx --from "tdn-protheus-mcp[snapshot]" tdn-protheus-mcp doctor --config ./tdn-protheus-mcp.config.json --json
+uvx --from "tdn-protheus-mcp[snapshot]" tdn-protheus-mcp index --config ./tdn-protheus-mcp.config.json --root-id 235312129 --json
 ```
 
 Copie `tdn-protheus-mcp.config.example.json`, altere `cache_root` e, quando quiser atualizar, use `apply-refresh` com os opt-ins exigidos. Veja [instalação](docs/install.md), [segurança](docs/security.md) e o [contrato MCP](docs/mcp-protocol-contract.md).
