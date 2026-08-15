@@ -128,6 +128,7 @@ class TdnHttpFetcher:
     def __init__(self, api_base: str, *, timeout_seconds: float = 20, get: Callable[..., Any] | None = None) -> None:
         self._api_base = api_base.rstrip("/")
         self._timeout_seconds = timeout_seconds
+        self._request_slot = threading.BoundedSemaphore(value=1)
         parsed_base = urlsplit(self._api_base)
         self._api_origin = (parsed_base.scheme.lower(), parsed_base.netloc.lower())
         self._api_path = parsed_base.path.rstrip("/")
@@ -152,6 +153,8 @@ class TdnHttpFetcher:
                     raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
                 timeout = min(timeout, remaining)
         outcome: Queue[tuple[dict[str, Any] | None, Exception | None]] = Queue(maxsize=1)
+        if not self._request_slot.acquire(timeout=timeout):
+            raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
 
         def request() -> None:
             try:
@@ -162,6 +165,8 @@ class TdnHttpFetcher:
                 outcome.put((None, error))
             else:
                 outcome.put((data, None))
+            finally:
+                self._request_slot.release()
 
         threading.Thread(target=request, daemon=True).start()
         try:

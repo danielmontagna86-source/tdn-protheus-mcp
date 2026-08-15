@@ -147,6 +147,29 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
         self.assertTrue(entered.is_set())
         self.assertLess(time.monotonic() - started, 0.5)
 
+    def test_http_fetcher_does_not_accumulate_blocked_requests_after_timeout(self) -> None:
+        entered = threading.Event()
+        release = threading.Event()
+        calls = []
+
+        def slow_get(_url, *, timeout):
+            calls.append(timeout)
+            entered.set()
+            release.wait(timeout=1)
+            return None
+
+        fetcher = TdnHttpFetcher("https://example.test/rest/api", timeout_seconds=20, get=slow_get)
+        try:
+            with self.assertRaisesRegex(PolicyRefusal, "POLICY_REFRESH_TIMEOUT"):
+                fetcher("10", remaining_timeout=lambda: 0.05)
+            self.assertTrue(entered.is_set())
+            with self.assertRaisesRegex(PolicyRefusal, "POLICY_REFRESH_TIMEOUT"):
+                fetcher("11", remaining_timeout=lambda: 0.05)
+        finally:
+            release.set()
+
+        self.assertEqual(calls, [0.05])
+
     def test_http_fetcher_requests_child_pages_with_the_same_timeout(self) -> None:
         calls = []
 
