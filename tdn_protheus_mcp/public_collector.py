@@ -32,16 +32,19 @@ class AtomicSnapshotWriter:
         target = self._staging / "pages" / f"{int(record['id'])}.json"
         target.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
 
+    @property
+    def page_directory(self) -> str:
+        return f"generations/{self._staging.name}/pages"
+
     def commit(self, manifest: dict[str, Any]) -> None:
         self._root.mkdir(parents=True, exist_ok=True)
-        pages = self._root / "pages"
-        pages.mkdir(exist_ok=True)
-        for page in (self._staging / "pages").glob("*.json"):
-            os.replace(page, pages / page.name)
+        generations = self._root / "generations"
+        generations.mkdir(exist_ok=True)
+        os.replace(self._staging, generations / self._staging.name)
+        published_manifest = {**manifest, "page_directory": self.page_directory}
         temporary = self._root / "manifest.json.tmp"
-        temporary.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        temporary.write_text(json.dumps(published_manifest, ensure_ascii=False), encoding="utf-8")
         os.replace(temporary, self._root / "manifest.json")
-        self.abort()
 
     def abort(self) -> None:
         if self._staging.exists():

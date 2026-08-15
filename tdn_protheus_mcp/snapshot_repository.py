@@ -32,6 +32,12 @@ class SnapshotRepository:
             raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", f"manifest sem páginas para root_id={normalized}")
         return normalized, root, data
 
+    def _pages_dir(self, root: Path, manifest: dict[str, Any]) -> Path:
+        relative = manifest.get("page_directory", "pages")
+        if not isinstance(relative, str) or not relative or Path(relative).is_absolute():
+            raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", "diretório de páginas inválido")
+        return self._policy.require_path(root / relative)
+
     @staticmethod
     def _page_id(page_id: str | int) -> str:
         try:
@@ -48,7 +54,7 @@ class SnapshotRepository:
         summary = manifest["pages"].get(normalized_page)
         if not isinstance(summary, dict) or summary.get("status") != "active":
             raise PolicyRefusal("POLICY_PAGE_NOT_ALLOWED", f"página ativa não encontrada: {normalized_page}")
-        path = self._policy.require_path(root / "pages" / f"{normalized_page}.json")
+        path = self._policy.require_path(self._pages_dir(root, manifest) / f"{normalized_page}.json")
         if not path.is_file():
             raise PolicyRefusal("POLICY_PAGE_NOT_FOUND", f"arquivo ausente para página {normalized_page} em root_id={normalized_root}")
         try:
@@ -68,7 +74,7 @@ class SnapshotRepository:
     def status(self, root_id: str) -> SnapshotStatus:
         normalized, root, manifest = self._manifest(root_id)
         summaries = list(manifest["pages"].values())
-        pages_dir = self._policy.require_path(root / "pages")
+        pages_dir = self._pages_dir(root, manifest)
         cache_bytes = sum(path.stat().st_size for path in pages_dir.glob("*.json")) if pages_dir.is_dir() else 0
         return SnapshotStatus(
             root_id=normalized,

@@ -37,6 +37,17 @@ class SnapshotRepositoryTests(unittest.TestCase):
             self.assertEqual(status.removed_pages, 1)
             self.assertGreater(status.cache_bytes, 0)
 
+    def test_repository_reads_the_generation_selected_by_the_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_root = Path(temp_dir) / "cache"
+            pages_dir = cache_root / "1" / "generations" / "run-a" / "pages"
+            pages_dir.mkdir(parents=True)
+            (pages_dir / "10.json").write_text(json.dumps({"id": 10, "title": "Atualizada", "url": "https://tdn/10", "text": "nova", "fetched_at": "2026-08-15"}), encoding="utf-8")
+            (cache_root / "1" / "manifest.json").write_text(json.dumps({"pages": {"10": {"status": "active"}}, "page_directory": "generations/run-a/pages"}), encoding="utf-8")
+            repository = SnapshotRepository(SnapshotPolicy(McpConfig(cache_root=cache_root, allowed_root_ids=frozenset({"1"}))))
+
+            self.assertEqual(repository.read_active_page("1", "10")["title"], "Atualizada")
+
 
 if __name__ == "__main__":
     unittest.main()

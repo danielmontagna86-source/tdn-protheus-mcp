@@ -20,8 +20,10 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
 
             writer.commit({"root_id": 1, "pages": {"10": {"status": "active"}}})
 
-            self.assertEqual(json.loads((root / "manifest.json").read_text(encoding="utf-8"))["root_id"], 1)
-            self.assertTrue((root / "pages" / "10.json").is_file())
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["root_id"], 1)
+            self.assertTrue((root / manifest["page_directory"] / "10.json").is_file())
+            self.assertFalse((root / "pages" / "10.json").exists())
 
     def test_atomic_writer_abort_removes_staging_without_touching_published_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
