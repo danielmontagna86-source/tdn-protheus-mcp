@@ -25,4 +25,8 @@ Uma integração deve ser declarada “suportada pelo contrato” somente se ace
 - **Hermes e Antigravity**: registre a configuração JSON genérica quando o produto permitir servidor MCP local. Se só aceitar arquivos de contexto, use `export-hermes` para gerar JSONL do cache já existente; isso não ativa rede.
 - **OpenRouter**: escolha o modelo no cliente que hospeda o MCP. OpenRouter não recebe a configuração deste servidor diretamente.
 
+## Skill complementar
+
+Para padronizar a coleta e a manutenção do snapshot, instale separadamente a skill [`coletando-documentacao-tdn-protheus`](companion-skill.md). Ela é opcional, funciona em Codex, Claude Code, Antigravity e loaders compatíveis, e produz o snapshot schema-v1 que o MCP `0.3.x` aceita. A skill não é empacotada no servidor MCP e não altera sua política offline/read-only.
+
 Para atualizar um snapshot, altere conscientemente `offline` para `false` e `allow_mutations` para `true`, defina `tdn_api_base` se usar um espelho HTTPS e execute `apply-refresh --confirm APPLY`. Consultas e inicialização permanecem offline por padrão.

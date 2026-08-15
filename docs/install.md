@@ -22,3 +22,7 @@ tdn-protheus-mcp index --config ./tdn-protheus-mcp.config.json --root-id 2353121
 ```
 
 Remoção: `pipx uninstall tdn-protheus-mcp`. A remoção do pacote não apaga o snapshot local.
+
+## Usar com a skill complementar
+
+Para instalar a skill `coletando-documentacao-tdn-protheus`, manter um snapshot por ela e servi-lo com este MCP, siga o guia de [skill complementar e cache compartilhado](companion-skill.md). A skill é opcional e permanece em seu [repositório próprio](https://github.com/danielmontagna86-source/tdn-protheus-skill-kit); ela não é instalada automaticamente pelo pacote Python.

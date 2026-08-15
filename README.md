@@ -22,12 +22,17 @@ uvx --from "tdn-protheus-mcp[snapshot]" tdn-protheus-mcp index --config ./tdn-pr
 
 Copie `tdn-protheus-mcp.config.example.json`, altere `cache_root` e, quando quiser atualizar, use `apply-refresh` com os opt-ins exigidos. Veja [instalação](docs/install.md), [segurança](docs/security.md) e o [contrato MCP](docs/mcp-protocol-contract.md).
 
+## Skill complementar
+
+A skill portátil [`coletando-documentacao-tdn-protheus`](https://github.com/danielmontagna86-source/tdn-protheus-skill-kit/tree/main/coletando-documentacao-tdn-protheus) é instalada separadamente e pode criar ou atualizar o mesmo snapshot local que este MCP indexa e consulta. O guia de [instalação e operação conjunta](docs/companion-skill.md) cobre Codex, Claude Code, Antigravity e loaders OpenRouter, sem embutir a skill no pacote Python.
+
 ## Clientes MCP
 
 - [Claude Code](docs/configure-claude-code.md)
 - [Codex](docs/configure-codex.md)
 - [Configuração genérica](docs/configure-generic-mcp.md)
 - [Matriz de compatibilidade de harnesses](docs/harness-compatibility.md)
+- [Skill complementar e cache compartilhado](docs/companion-skill.md)
 - [Política de release e suporte](docs/release-policy.md)
 - [Telemetria](docs/telemetry.md)
 
