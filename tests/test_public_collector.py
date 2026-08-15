@@ -173,6 +173,17 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
     def test_http_fetcher_recalculates_the_budget_after_waiting_for_a_request_slot(self) -> None:
         calls = []
 
+        class Slot:
+            def __init__(self) -> None:
+                self.timeouts = []
+
+            def acquire(self, *, timeout):
+                self.timeouts.append(timeout)
+                return True
+
+            def release(self) -> None:
+                return None
+
         class Response:
             def raise_for_status(self) -> None:
                 return None
@@ -184,16 +195,14 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
             "https://example.test/rest/api", timeout_seconds=20,
             get=lambda _url, timeout: calls.append(timeout) or Response(),
         )
-        self.assertTrue(fetcher._request_slot.acquire())
-        deadline = time.monotonic() + 0.1
-        release = threading.Timer(0.02, fetcher._request_slot.release)
-        release.start()
-        try:
-            self.assertEqual(fetcher("10", remaining_timeout=lambda: deadline - time.monotonic()), {"id": "10"})
-        finally:
-            release.join(timeout=1)
+        slot = Slot()
+        fetcher._request_slot = slot
+        remaining = iter([0.1, 0.08])
 
-        self.assertLess(calls[0], 0.09)
+        self.assertEqual(fetcher("10", remaining_timeout=lambda: next(remaining)), {"id": "10"})
+
+        self.assertEqual(slot.timeouts, [0.1])
+        self.assertEqual(calls, [0.08])
 
     def test_http_fetcher_requests_child_pages_with_the_same_timeout(self) -> None:
         calls = []
