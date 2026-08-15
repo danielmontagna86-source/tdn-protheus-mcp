@@ -3,21 +3,67 @@
 from __future__ import annotations
 
 from collections import deque
+from contextlib import AbstractContextManager
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 import json
 import os
+from queue import Empty, Queue
 import shutil
 import tempfile
+import threading
+import time
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from .contracts import PolicyRefusal, UpstreamError
 from .mutations import RefreshPlan
 
 
 TDN_WEB = "https://tdn.totvs.com"
+GENERATIONS_TO_RETAIN = 2
+
+
+class _ManifestLock(AbstractContextManager["_ManifestLock"]):
+    """Small cross-process lock for the short manifest replacement critical section."""
+
+    def __init__(self, path: Path, *, timeout_seconds: float = 30, stale_seconds: float = 120) -> None:
+        self._path = path
+        self._timeout_seconds = timeout_seconds
+        self._stale_seconds = stale_seconds
+        self._descriptor: int | None = None
+
+    def __enter__(self) -> "_ManifestLock":
+        deadline = time.monotonic() + self._timeout_seconds
+        while True:
+            try:
+                self._descriptor = os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(self._descriptor, str(os.getpid()).encode("ascii"))
+                return self
+            except FileExistsError:
+                try:
+                    stale = time.time() - self._path.stat().st_mtime >= self._stale_seconds
+                except FileNotFoundError:
+                    continue
+                if stale:
+                    try:
+                        self._path.unlink()
+                    except FileNotFoundError:
+                        pass
+                    continue
+                if time.monotonic() >= deadline:
+                    raise PolicyRefusal("POLICY_REFRESH_BUSY", "outra atualização está publicando este snapshot")
+                time.sleep(0.05)
+
+    def __exit__(self, _type: object, _value: object, _traceback: object) -> None:
+        if self._descriptor is not None:
+            os.close(self._descriptor)
+            self._descriptor = None
+        try:
+            self._path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 class AtomicSnapshotWriter:
@@ -37,15 +83,39 @@ class AtomicSnapshotWriter:
     def page_directory(self) -> str:
         return f"generations/{self._staging.name}/pages"
 
+    @property
+    def manifest_temp_path(self) -> Path:
+        return self._root / f".manifest-{self._staging.name}.tmp"
+
+    @staticmethod
+    def _prune_generations(generations: Path, current: Path) -> None:
+        candidates = [path for path in generations.iterdir() if path.is_dir()]
+        previous = sorted(
+            (path for path in candidates if path != current), key=lambda path: path.stat().st_mtime, reverse=True
+        )[: GENERATIONS_TO_RETAIN - 1]
+        retained = {current, *previous}
+        for generation in candidates:
+            if generation in retained:
+                continue
+            try:
+                shutil.rmtree(generation)
+            except OSError:
+                # A concurrent reader may still have a generation open (notably on Windows).
+                # Retaining it is safe; the next successful refresh will try again.
+                pass
+
     def commit(self, manifest: dict[str, Any]) -> None:
         self._root.mkdir(parents=True, exist_ok=True)
         generations = self._root / "generations"
         generations.mkdir(exist_ok=True)
-        os.replace(self._staging, generations / self._staging.name)
+        current_generation = generations / self._staging.name
+        os.replace(self._staging, current_generation)
         published_manifest = {**manifest, "page_directory": self.page_directory}
-        temporary = self._root / "manifest.json.tmp"
-        temporary.write_text(json.dumps(published_manifest, ensure_ascii=False), encoding="utf-8")
-        os.replace(temporary, self._root / "manifest.json")
+        with _ManifestLock(self._root / ".manifest.lock"):
+            temporary = self.manifest_temp_path
+            temporary.write_text(json.dumps(published_manifest, ensure_ascii=False), encoding="utf-8")
+            os.replace(temporary, self._root / "manifest.json")
+            self._prune_generations(generations, current_generation)
 
     def abort(self) -> None:
         if self._staging.exists():
@@ -58,6 +128,9 @@ class TdnHttpFetcher:
     def __init__(self, api_base: str, *, timeout_seconds: float = 20, get: Callable[..., Any] | None = None) -> None:
         self._api_base = api_base.rstrip("/")
         self._timeout_seconds = timeout_seconds
+        parsed_base = urlsplit(self._api_base)
+        self._api_origin = (parsed_base.scheme.lower(), parsed_base.netloc.lower())
+        self._api_path = parsed_base.path.rstrip("/")
         if get is None:
             try:
                 import requests
@@ -76,11 +149,24 @@ class TdnHttpFetcher:
                 if remaining <= 0:
                     raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
                 timeout = min(timeout, remaining)
+        outcome: Queue[tuple[dict[str, Any] | None, Exception | None]] = Queue(maxsize=1)
+
+        def request() -> None:
+            try:
+                response = self._get(url, timeout=timeout)
+                response.raise_for_status()
+                data = response.json()
+            except Exception as error:
+                outcome.put((None, error))
+            else:
+                outcome.put((data, None))
+
+        threading.Thread(target=request, daemon=True).start()
         try:
-            response = self._get(url, timeout=timeout)
-            response.raise_for_status()
-            data = response.json()
-        except Exception as error:
+            data, error = outcome.get(timeout=timeout)
+        except Empty as error:
+            raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta") from error
+        if error is not None:
             raise UpstreamError(
                 "UPSTREAM_TDN_REQUEST_FAILED", "não foi possível consultar o endpoint TDN configurado"
             ) from error
@@ -118,18 +204,26 @@ class TdnHttpFetcher:
     ) -> list[dict[str, Any]]:
         """Return every child page advertised by the public TDN pagination links."""
         url = f"{self._api_base}/content/{page_id}/child/page?limit={limit}&start=0"
+        expected_path = f"{self._api_path}/content/{page_id}/child/page"
         children: list[dict[str, Any]] = []
         while True:
             response = self._request_json(url, remaining_timeout=remaining_timeout)
             results = response.get("results", [])
             if not isinstance(results, list):
-                raise RuntimeError(f"lista de filhos inválida para página {page_id}")
+                raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", "o endpoint TDN retornou uma lista de filhos inválida")
             children.extend(item for item in results if isinstance(item, dict))
             links = response.get("_links", {})
-            next_link = links.get("next") if isinstance(links, dict) else None
-            if not isinstance(next_link, str) or not next_link:
+            if not isinstance(links, dict):
+                raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", "o endpoint TDN retornou links inválidos")
+            next_link = links.get("next")
+            if next_link is None or next_link == "":
                 return children
+            if not isinstance(next_link, str):
+                raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", "o endpoint TDN retornou paginação inválida")
             url = urljoin(url, next_link)
+            parsed_next = urlsplit(url)
+            if (parsed_next.scheme.lower(), parsed_next.netloc.lower()) != self._api_origin or parsed_next.path != expected_path:
+                raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", "o endpoint TDN retornou paginação fora da origem configurada")
 
 
 class _TextExtractor(HTMLParser):

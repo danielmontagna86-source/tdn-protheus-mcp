@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 import tempfile
 import json
+import threading
+import time
 from pathlib import Path
 
 from tdn_protheus_mcp.contracts import PolicyRefusal, UpstreamError
@@ -37,6 +39,44 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
 
             self.assertEqual(json.loads((root / "manifest.json").read_text(encoding="utf-8"))["stable"], True)
             self.assertFalse((root / "pages" / "11.json").exists())
+
+    def test_atomic_writers_can_publish_concurrently_without_sharing_a_manifest_temp_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "cache" / "1"
+            writers = [AtomicSnapshotWriter(root), AtomicSnapshotWriter(root)]
+            self.assertNotEqual(writers[0].manifest_temp_path, writers[1].manifest_temp_path)
+            for index, writer in enumerate(writers, start=10):
+                writer.write_page({"id": index, "title": str(index), "url": f"https://tdn/{index}", "text": "conteúdo"})
+            errors = []
+
+            def commit(writer):
+                try:
+                    writer.commit({"root_id": 1, "pages": {"10": {"status": "active"}}})
+                except Exception as error:
+                    errors.append(error)
+
+            threads = [threading.Thread(target=commit, args=(writer,)) for writer in writers]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=5)
+
+            self.assertEqual(errors, [])
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+            self.assertTrue((root / manifest["page_directory"]).is_dir())
+
+    def test_atomic_writer_retains_only_the_current_and_previous_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "cache" / "1"
+            for page_id in (10, 11, 12):
+                writer = AtomicSnapshotWriter(root)
+                writer.write_page({"id": page_id, "title": str(page_id), "url": f"https://tdn/{page_id}", "text": "conteúdo"})
+                writer.commit({"root_id": 1, "pages": {str(page_id): {"status": "active"}}})
+
+            generations = sorted(path.name for path in (root / "generations").iterdir() if path.is_dir())
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(generations), 2)
+            self.assertIn(Path(manifest["page_directory"]).parts[1], generations)
     def test_http_fetcher_uses_explicit_timeout_and_validates_json_response(self) -> None:
         calls = []
 
@@ -60,6 +100,33 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
 
         with self.assertRaisesRegex(UpstreamError, "UPSTREAM_TDN_REQUEST_FAILED"):
             fetcher("10")
+
+    def test_http_fetcher_returns_when_the_total_request_budget_expires(self) -> None:
+        entered = threading.Event()
+        release = threading.Event()
+
+        class Response:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return {"id": "10"}
+
+        def slow_get(_url, *, timeout):
+            entered.set()
+            release.wait(timeout=1)
+            return Response()
+
+        fetcher = TdnHttpFetcher("https://example.test/rest/api", timeout_seconds=20, get=slow_get)
+        started = time.monotonic()
+        try:
+            with self.assertRaisesRegex(PolicyRefusal, "POLICY_REFRESH_TIMEOUT"):
+                fetcher("10", remaining_timeout=lambda: 0.05)
+        finally:
+            release.set()
+
+        self.assertTrue(entered.is_set())
+        self.assertLess(time.monotonic() - started, 0.5)
 
     def test_http_fetcher_requests_child_pages_with_the_same_timeout(self) -> None:
         calls = []
@@ -127,6 +194,41 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
         self.assertEqual(
             calls[1], "https://example.test/rest/api/content/10/child/page?limit=50&start=1"
         )
+
+    def test_http_fetcher_refuses_pagination_links_outside_the_configured_api_origin(self) -> None:
+        calls = []
+
+        class Response:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return {"results": [], "_links": {"next": "https://example.invalid/private"}}
+
+        def get(url, *, timeout):
+            calls.append(url)
+            if len(calls) > 1:
+                raise AssertionError("não deve solicitar a origem externa")
+            return Response()
+
+        fetcher = TdnHttpFetcher("https://example.test/rest/api", get=get)
+
+        with self.assertRaisesRegex(UpstreamError, "UPSTREAM_TDN_INVALID_RESPONSE"):
+            fetcher.list_children("10")
+        self.assertEqual(calls, ["https://example.test/rest/api/content/10/child/page?limit=50&start=0"])
+
+    def test_http_fetcher_refuses_a_malformed_child_list(self) -> None:
+        class Response:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return {"results": "não é lista", "_links": {}}
+
+        fetcher = TdnHttpFetcher("https://example.test/rest/api", get=lambda _url, timeout: Response())
+
+        with self.assertRaisesRegex(UpstreamError, "UPSTREAM_TDN_INVALID_RESPONSE"):
+            fetcher.list_children("10")
 
     def test_http_fetcher_uses_the_remaining_global_budget_for_each_paginated_request(self) -> None:
         calls = []
