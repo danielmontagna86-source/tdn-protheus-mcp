@@ -101,6 +101,33 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
         self.assertEqual(fetcher.list_children("10"), [{"id": "11"}, {"id": "12"}])
         self.assertEqual(len(calls), 2)
 
+    def test_http_fetcher_resolves_a_query_only_pagination_link_against_the_current_page(self) -> None:
+        calls = []
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return self.payload
+
+        payloads = [
+            {"results": [{"id": "11"}], "_links": {"next": "?limit=50&start=1"}},
+            {"results": [{"id": "12"}], "_links": {}},
+        ]
+        fetcher = TdnHttpFetcher(
+            "https://example.test/rest/api",
+            get=lambda url, timeout: calls.append(url) or Response(payloads.pop(0)),
+        )
+
+        self.assertEqual(fetcher.list_children("10"), [{"id": "11"}, {"id": "12"}])
+        self.assertEqual(
+            calls[1], "https://example.test/rest/api/content/10/child/page?limit=50&start=1"
+        )
+
     def test_http_fetcher_uses_the_remaining_global_budget_for_each_paginated_request(self) -> None:
         calls = []
 

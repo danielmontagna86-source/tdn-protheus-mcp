@@ -129,7 +129,7 @@ class TdnHttpFetcher:
             next_link = links.get("next") if isinstance(links, dict) else None
             if not isinstance(next_link, str) or not next_link:
                 return children
-            url = urljoin(f"{self._api_base}/", next_link)
+            url = urljoin(url, next_link)
 
 
 class _TextExtractor(HTMLParser):
