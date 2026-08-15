@@ -8,3 +8,4 @@ tdn-cache/
 *.sqlite3
 *.jsonl
 .pytest_cache/
+.worktrees/
