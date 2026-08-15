@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urljoin
 
-from .contracts import PolicyRefusal
+from .contracts import PolicyRefusal, UpstreamError
 from .mutations import RefreshPlan
 
 
@@ -76,11 +76,16 @@ class TdnHttpFetcher:
                 if remaining <= 0:
                     raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
                 timeout = min(timeout, remaining)
-        response = self._get(url, timeout=timeout)
-        response.raise_for_status()
-        data = response.json()
+        try:
+            response = self._get(url, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as error:
+            raise UpstreamError(
+                "UPSTREAM_TDN_REQUEST_FAILED", "não foi possível consultar o endpoint TDN configurado"
+            ) from error
         if not isinstance(data, dict):
-            raise RuntimeError("resposta TDN inválida")
+            raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", "o endpoint TDN retornou uma resposta inválida")
         return data
 
     def __call__(

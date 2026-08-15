@@ -34,7 +34,7 @@ O servidor não inicia HTTP e não recebe credenciais de ERP. No padrão (`offli
 
 O conteúdo retornado é sempre uma **referência externa não confiável**. Clientes não devem tratar texto de página como instrução de sistema ou ação autorizada.
 
-Erros recusados incluem `POLICY_ROOT_NOT_ALLOWED`, `POLICY_PATH_OUTSIDE_CACHE`, `POLICY_INDEX_NOT_FOUND`, `POLICY_PAGE_NOT_ALLOWED`, `POLICY_LIMIT_EXCEEDED`, `POLICY_OFFLINE`, `POLICY_MUTATIONS_DISABLED`, `POLICY_CONFIRMATION_REQUIRED`, `POLICY_REFRESH_CANCELLED`, `POLICY_REFRESH_TIMEOUT` e erros `CONFIG_*`. A resposta não inclui caminhos fora de `cache_root`, HTML bruto, tokens ou credenciais.
+Erros recusados incluem `POLICY_ROOT_NOT_ALLOWED`, `POLICY_PATH_OUTSIDE_CACHE`, `POLICY_INDEX_NOT_FOUND`, `POLICY_PAGE_NOT_ALLOWED`, `POLICY_LIMIT_EXCEEDED`, `POLICY_OFFLINE`, `POLICY_MUTATIONS_DISABLED`, `POLICY_CONFIRMATION_REQUIRED`, `POLICY_REFRESH_CANCELLED`, `POLICY_REFRESH_TIMEOUT` e erros `CONFIG_*`. Uma atualização que não consiga consultar o endpoint configurado retorna `UPSTREAM_TDN_REQUEST_FAILED`; uma resposta incompatível retorna `UPSTREAM_TDN_INVALID_RESPONSE`. A resposta não inclui caminhos fora de `cache_root`, HTML bruto, tokens ou credenciais.
 
 ## Compatibilidade
 

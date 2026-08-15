@@ -5,7 +5,7 @@ import tempfile
 import json
 from pathlib import Path
 
-from tdn_protheus_mcp.contracts import PolicyRefusal
+from tdn_protheus_mcp.contracts import PolicyRefusal, UpstreamError
 from tdn_protheus_mcp.mutations import RefreshPlan
 from tdn_protheus_mcp.public_collector import AtomicSnapshotWriter, PublicSnapshotCollector, PublicSnapshotRefresher, TdnHttpFetcher
 
@@ -51,6 +51,15 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
 
         self.assertEqual(fetcher("10"), {"id": "10"})
         self.assertEqual(calls, [("https://example.test/rest/api/content/10?expand=version,body.storage", 7)])
+
+    def test_http_fetcher_converts_transport_failures_to_a_stable_upstream_error(self) -> None:
+        def unavailable(_url, *, timeout):
+            raise TimeoutError(f"timed out after {timeout}")
+
+        fetcher = TdnHttpFetcher("https://example.test/rest/api", get=unavailable)
+
+        with self.assertRaisesRegex(UpstreamError, "UPSTREAM_TDN_REQUEST_FAILED"):
+            fetcher("10")
 
     def test_http_fetcher_requests_child_pages_with_the_same_timeout(self) -> None:
         calls = []

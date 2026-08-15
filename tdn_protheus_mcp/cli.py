@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import ConfigError, McpConfig, load_config
-from .contracts import PolicyRefusal, SearchResult, SnapshotStatus
+from .contracts import PolicyRefusal, SearchResult, SnapshotStatus, UpstreamError
 from .indexer import SnapshotIndexer
 from .mutations import RefreshOperations
 from .policy import SnapshotPolicy
@@ -172,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
                 query = policy.search_query(args.query, args.root_id, args.max_results, args.max_chars)
                 results = SnapshotSearch(policy).search(query, module=args.module, table=args.table, routine=args.routine, parameter=args.parameter)
                 payload = {"root_id": query.root_id, "results": [_search_result_payload(result) for result in results]}
-    except (ConfigError, PolicyRefusal, ValueError) as error:
+    except (ConfigError, PolicyRefusal, UpstreamError, ValueError) as error:
         code = getattr(error, "code", "POLICY_ERROR")
         if args.json:
             print(json.dumps({"ok": False, "error": {"code": code, "message": str(error)}}, ensure_ascii=False))

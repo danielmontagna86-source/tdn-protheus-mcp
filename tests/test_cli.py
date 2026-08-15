@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tdn_protheus_mcp import cli
+from tdn_protheus_mcp.contracts import UpstreamError
 
 
 ROOT = Path(__file__).parents[1]
@@ -56,6 +57,33 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(stdout.getvalue())["pages_saved"], 1)
+
+    def test_apply_refresh_emits_a_structured_upstream_error(self) -> None:
+        class FailingFetcher:
+            def __init__(self, _api_base, *, timeout_seconds):
+                pass
+
+            def __call__(self, _page_id, *, remaining_timeout=None):
+                raise UpstreamError("UPSTREAM_TDN_REQUEST_FAILED", "endpoint TDN indisponível")
+
+            def list_children(self, _page_id, *, remaining_timeout=None):
+                return []
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "mcp.json"
+            config_path.write_text(json.dumps({
+                "cache_root": str(Path(temp_dir) / "cache"), "allowed_root_ids": ["1"],
+                "offline": False, "allow_mutations": True,
+            }), encoding="utf-8")
+            stdout = io.StringIO()
+            with patch.object(cli, "TdnHttpFetcher", FailingFetcher), redirect_stdout(stdout):
+                code = cli.main([
+                    "apply-refresh", "--config", str(config_path), "--root-id", "1", "--max-depth", "0",
+                    "--max-pages", "10", "--confirm", "APPLY", "--json",
+                ])
+
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(stdout.getvalue())["error"]["code"], "UPSTREAM_TDN_REQUEST_FAILED")
 
     def test_export_hermes_emits_a_cache_owned_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

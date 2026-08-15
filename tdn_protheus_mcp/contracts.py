@@ -48,3 +48,14 @@ class PolicyRefusal(Exception):
 
     def __str__(self) -> str:
         return f"{self.code}: {self.message}"
+
+
+@dataclass(frozen=True)
+class UpstreamError(Exception):
+    """A stable failure from the explicitly configured external TDN endpoint."""
+
+    code: str
+    message: str
+
+    def __str__(self) -> str:
+        return f"{self.code}: {self.message}"
