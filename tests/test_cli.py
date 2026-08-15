@@ -70,7 +70,7 @@ class CliTests(unittest.TestCase):
             result = subprocess.run([sys.executable, "-m", "tdn_protheus_mcp", "export-hermes", "--config", str(config_path), "--root-id", "1", "--filename", "context.jsonl", "--json"], cwd=ROOT, capture_output=True, text=True, check=False)
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(Path(json.loads(result.stdout)["path"]).parent, cache_root / "exports")
+            self.assertEqual(Path(json.loads(result.stdout)["path"]).parent, (cache_root / "exports").resolve())
 
     def test_plan_refresh_is_offline_and_does_not_create_cache(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

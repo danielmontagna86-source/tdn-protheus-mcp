@@ -100,7 +100,7 @@ class RefreshOperationsTests(unittest.TestCase):
             exported = operations.export_hermes_context("1", "advpl-context.jsonl")
 
             self.assertEqual(exported.name, "advpl-context.jsonl")
-            self.assertEqual(exported.parent, cache_root / "exports")
+            self.assertEqual(exported.parent, (cache_root / "exports").resolve())
             self.assertIn('"source_url": "https://tdn.totvs.com/10"', exported.read_text(encoding="utf-8"))
             audit_event = json.loads((cache_root / "audit.jsonl").read_text(encoding="utf-8"))
             self.assertEqual(audit_event["operation"], "export_hermes_context")

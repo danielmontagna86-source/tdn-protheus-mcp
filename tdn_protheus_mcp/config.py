@@ -75,7 +75,16 @@ def load_config(path: str | Path) -> McpConfig:
 
     cache_root = Path(_required_string(data, "cache_root")).expanduser().resolve()
     root_ids = data.get("allowed_root_ids")
-    if not isinstance(root_ids, list) or not root_ids or any(not isinstance(item, (str, int)) or not str(item).strip() for item in root_ids):
+    if (
+        not isinstance(root_ids, list)
+        or not root_ids
+        or any(
+            not isinstance(item, (str, int))
+            or not str(item).strip().isdigit()
+            or int(str(item).strip()) <= 0
+            for item in root_ids
+        )
+    ):
         raise ConfigError("CONFIG_INVALID_ROOTS", "'allowed_root_ids' deve ser uma lista não vazia de identificadores")
     offline = data.get("offline", True)
     allow_mutations = data.get("allow_mutations", False)

@@ -79,6 +79,7 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
         self.assertEqual(record["id"], 10)
         self.assertEqual(record["url"], "https://tdn.totvs.com/pages/10")
         self.assertEqual(record["text"], "FWRest\nUse HTTP.")
+        self.assertTrue(record["fetched_at"].endswith("+00:00"))
         self.assertNotIn("html", record)
 
     def test_collector_discovers_children_breadth_first_with_a_depth_limit(self) -> None:

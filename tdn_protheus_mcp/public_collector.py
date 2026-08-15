@@ -160,6 +160,7 @@ class PublicSnapshotCollector:
             "body_len": len(html),
             "version_number": version.get("number"),
             "version_when": version.get("when"),
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
 
 
