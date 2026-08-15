@@ -128,8 +128,12 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
         plan = RefreshPlan("1", max_depth=1, estimated_pages=2, estimated_disk_bytes=1, minimum_duration_seconds=0)
 
         with tempfile.TemporaryDirectory() as temp_dir:
+            index_path = Path(temp_dir) / "1" / "index.sqlite3"
+            index_path.parent.mkdir()
+            index_path.write_text("stale", encoding="utf-8")
             result = PublicSnapshotRefresher(collector, Path(temp_dir))(plan)
             manifest = json.loads((Path(temp_dir) / "1" / "manifest.json").read_text(encoding="utf-8"))
+            self.assertFalse(index_path.exists())
 
         self.assertEqual(result, {"root_id": 1, "pages_saved": 2})
         self.assertEqual(manifest["pages"]["2"]["status"], "active")

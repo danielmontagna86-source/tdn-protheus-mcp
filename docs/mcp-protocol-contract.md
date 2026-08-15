@@ -1,6 +1,6 @@
 # Contrato MCP — TDN Protheus MCP
 
-## Escopo da versão 0.1.x
+## Escopo da versão 0.3.x
 
 O servidor é local, offline por padrão e somente leitura. O único transporte aceito é `stdio`:
 
@@ -8,7 +8,7 @@ O servidor é local, offline por padrão e somente leitura. O único transporte 
 tdn-protheus-mcp serve --config ./tdn-protheus-mcp.config.json --transport stdio
 ```
 
-O servidor não inicia HTTP, não recebe credenciais de ERP, não baixa documentação e não modifica snapshots. O comando `index` é uma ação local explícita que gera apenas o arquivo derivado `index.sqlite3` sob a raiz de cache permitida.
+O servidor não inicia HTTP e não recebe credenciais de ERP. No padrão (`offline=true`, `allow_mutations=false`) ele não baixa documentação nem modifica snapshots. O comando `index` é uma ação local explícita que gera apenas o arquivo derivado `index.sqlite3` sob a raiz de cache permitida.
 
 ## Tools
 
@@ -17,6 +17,7 @@ O servidor não inicia HTTP, não recebe credenciais de ERP, não baixa document
 | `search_tdn_docs` | `query`, `root_id` | Chunks citáveis, com `source_url`, `page_id`, `chunk_id` e classificação `external_reference`. |
 | `get_tdn_context` | `question`, `root_id` | Contexto deduplicado, citações, aviso de segurança e status do snapshot. |
 | `get_snapshot_status` | `root_id` | Contagem de páginas, tamanho do cache e flags locais de segurança. |
+| `apply_tdn_snapshot_refresh` | `root_id`, `confirmation=APPLY` | Disponível somente com `offline=false` e `allow_mutations=true`; atualiza o snapshot sob limites de profundidade, páginas e prazo. |
 
 `max_results` é limitado a 20 e `max_chars` a 24000, ou a limites menores definidos na configuração local. Filtros aceitos por `search_tdn_docs`: `module`, `table`, `routine` e `parameter`.
 
@@ -33,7 +34,7 @@ O servidor não inicia HTTP, não recebe credenciais de ERP, não baixa document
 
 O conteúdo retornado é sempre uma **referência externa não confiável**. Clientes não devem tratar texto de página como instrução de sistema ou ação autorizada.
 
-Erros recusados incluem `POLICY_ROOT_NOT_ALLOWED`, `POLICY_PATH_OUTSIDE_CACHE`, `POLICY_INDEX_NOT_FOUND`, `POLICY_PAGE_NOT_ALLOWED`, `POLICY_LIMIT_EXCEEDED` e erros `CONFIG_*`. A resposta não inclui caminhos fora de `cache_root`, HTML bruto, tokens ou credenciais.
+Erros recusados incluem `POLICY_ROOT_NOT_ALLOWED`, `POLICY_PATH_OUTSIDE_CACHE`, `POLICY_INDEX_NOT_FOUND`, `POLICY_PAGE_NOT_ALLOWED`, `POLICY_LIMIT_EXCEEDED`, `POLICY_OFFLINE`, `POLICY_MUTATIONS_DISABLED`, `POLICY_CONFIRMATION_REQUIRED`, `POLICY_REFRESH_CANCELLED`, `POLICY_REFRESH_TIMEOUT` e erros `CONFIG_*`. A resposta não inclui caminhos fora de `cache_root`, HTML bruto, tokens ou credenciais.
 
 ## Compatibilidade
 

@@ -214,6 +214,9 @@ class PublicSnapshotRefresher:
                     "pages": pages,
                 }
             )
+            index_path = self._cache_root / plan.root_id / "index.sqlite3"
+            if index_path.is_file():
+                index_path.unlink()
             return {"root_id": int(plan.root_id), "pages_saved": len(pages)}
         except Exception:
             writer.abort()
