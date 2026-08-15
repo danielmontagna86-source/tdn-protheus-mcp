@@ -48,6 +48,48 @@ class SnapshotRepositoryTests(unittest.TestCase):
 
             self.assertEqual(repository.read_active_page("1", "10")["title"], "Atualizada")
 
+    def test_repository_reads_a_schema_v1_portable_companion_skill_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_root = Path(temp_dir) / "cache"
+            pages_dir = cache_root / "235312129" / "pages"
+            pages_dir.mkdir(parents=True)
+            (pages_dir / "42.json").write_text(
+                json.dumps(
+                    {
+                        "id": 42,
+                        "title": "Referência AdvPL",
+                        "url": "https://tdn.totvs.com/pages/viewpage.action?pageId=42",
+                        "text": "Conteúdo coletado pela skill portátil.",
+                        "body_len": 41,
+                        "version_number": 3,
+                        "version_when": "2026-08-15T00:00:00Z",
+                        "text_sha256": "a" * 64,
+                        "status": "active",
+                        "fetched_at": "2026-08-15T00:00:00Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (cache_root / "235312129" / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "root_id": 235312129,
+                        "last_complete_at": "2026-08-15T00:00:00Z",
+                        "pages": {"42": {"status": "active"}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            repository = SnapshotRepository(
+                SnapshotPolicy(McpConfig(cache_root=cache_root, allowed_root_ids=frozenset({"235312129"})))
+            )
+
+            page = repository.read_active_page("235312129", "42")
+
+            self.assertEqual(page["title"], "Referência AdvPL")
+            self.assertEqual(page["url"], "https://tdn.totvs.com/pages/viewpage.action?pageId=42")
+
 
 if __name__ == "__main__":
     unittest.main()
