@@ -11,6 +11,7 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urljoin
 
 from .contracts import PolicyRefusal
 from .mutations import RefreshPlan
@@ -81,6 +82,22 @@ class TdnHttpFetcher:
             f"{self._api_base}/content/{page_id}/child/page?limit={limit}&start={start}"
         )
 
+    def list_children(self, page_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        """Return every child page advertised by the public TDN pagination links."""
+        url = f"{self._api_base}/content/{page_id}/child/page?limit={limit}&start=0"
+        children: list[dict[str, Any]] = []
+        while True:
+            response = self._request_json(url)
+            results = response.get("results", [])
+            if not isinstance(results, list):
+                raise RuntimeError(f"lista de filhos inválida para página {page_id}")
+            children.extend(item for item in results if isinstance(item, dict))
+            links = response.get("_links", {})
+            next_link = links.get("next") if isinstance(links, dict) else None
+            if not isinstance(next_link, str) or not next_link:
+                return children
+            url = urljoin(f"{self._api_base}/", next_link)
+
 
 class _TextExtractor(HTMLParser):
     def __init__(self) -> None:
@@ -106,7 +123,7 @@ class PublicSnapshotCollector:
         self,
         fetch_json: Callable[[str], dict[str, Any] | None],
         *,
-        fetch_children: Callable[[str], dict[str, Any] | None] | None = None,
+        fetch_children: Callable[[str], dict[str, Any] | list[dict[str, Any]] | None] | None = None,
     ) -> None:
         self._fetch_json = fetch_json
         self._fetch_children = fetch_children
@@ -137,9 +154,12 @@ class PublicSnapshotCollector:
             if depth == max_depth:
                 continue
             response = self._fetch_children(page_id)
-            if not isinstance(response, dict):
+            if isinstance(response, dict):
+                children = response.get("results", [])
+            elif isinstance(response, list):
+                children = response
+            else:
                 raise RuntimeError(f"resposta de filhos inválida para página {page_id}")
-            children = response.get("results", [])
             if not isinstance(children, list):
                 raise RuntimeError(f"lista de filhos inválida para página {page_id}")
             for child in children:

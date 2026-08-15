@@ -96,7 +96,7 @@ def create_server(config: McpConfig) -> FastMCP:
 
     if not config.offline and config.allow_mutations:
         fetcher = TdnHttpFetcher(config.tdn_api_base, timeout_seconds=config.refresh_timeout_seconds)
-        collector = PublicSnapshotCollector(fetcher, fetch_children=fetcher.fetch_children)
+        collector = PublicSnapshotCollector(fetcher, fetch_children=fetcher.list_children)
         refresh = RefreshOperations(
             config,
             refresh_runner=SnapshotRefreshAdapter(

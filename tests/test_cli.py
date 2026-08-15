@@ -38,8 +38,8 @@ class CliTests(unittest.TestCase):
                     "version": {"number": 1}, "_links": {"webui": "/1"},
                 }
 
-            def fetch_children(self, _page_id):
-                return {"results": []}
+            def list_children(self, _page_id):
+                return []
 
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "mcp.json"

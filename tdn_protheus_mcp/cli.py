@@ -49,7 +49,7 @@ def doctor_payload(config: McpConfig) -> dict[str, Any]:
 
 def _refresh_operations(config: McpConfig) -> RefreshOperations:
     fetcher = TdnHttpFetcher(config.tdn_api_base, timeout_seconds=config.refresh_timeout_seconds)
-    collector = PublicSnapshotCollector(fetcher, fetch_children=fetcher.fetch_children)
+    collector = PublicSnapshotCollector(fetcher, fetch_children=fetcher.list_children)
     runner = SnapshotRefreshAdapter(
         PublicSnapshotRefresher(collector, config.cache_root),
         default_timeout_seconds=config.refresh_timeout_seconds,
