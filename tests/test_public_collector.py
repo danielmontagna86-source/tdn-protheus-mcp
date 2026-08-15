@@ -6,6 +6,7 @@ import json
 import threading
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 from tdn_protheus_mcp.contracts import PolicyRefusal, UpstreamError
 from tdn_protheus_mcp.mutations import RefreshPlan
@@ -91,6 +92,24 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
 
         self.assertEqual(fetcher("10"), {"id": "10"})
         self.assertEqual(calls, [("https://example.test/rest/api/content/10?expand=version,body.storage", 7)])
+
+    def test_default_http_fetcher_disables_redirects(self) -> None:
+        class Response:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return {"id": "10"}
+
+        with patch("requests.get", return_value=Response()) as get:
+            fetcher = TdnHttpFetcher("https://example.test/rest/api")
+            self.assertEqual(fetcher("10"), {"id": "10"})
+
+        get.assert_called_once_with(
+            "https://example.test/rest/api/content/10?expand=version,body.storage",
+            timeout=20,
+            allow_redirects=False,
+        )
 
     def test_http_fetcher_converts_transport_failures_to_a_stable_upstream_error(self) -> None:
         def unavailable(_url, *, timeout):
@@ -272,6 +291,12 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
         self.assertEqual(record["text"], "FWRest\nUse HTTP.")
         self.assertTrue(record["fetched_at"].endswith("+00:00"))
         self.assertNotIn("html", record)
+
+    def test_collector_converts_a_malformed_page_body_to_a_stable_upstream_error(self) -> None:
+        collector = PublicSnapshotCollector(lambda _url: {"id": "10", "body": "malformed"})
+
+        with self.assertRaisesRegex(UpstreamError, "UPSTREAM_TDN_INVALID_RESPONSE"):
+            collector.fetch_page("10")
 
     def test_collector_discovers_children_breadth_first_with_a_depth_limit(self) -> None:
         children = {

@@ -136,7 +136,9 @@ class TdnHttpFetcher:
                 import requests
             except ImportError as error:
                 raise RuntimeError("instale tdn-protheus-mcp[snapshot] para atualização HTTP") from error
-            get = requests.get
+
+            def get(url: str, *, timeout: float) -> Any:
+                return requests.get(url, timeout=timeout, allow_redirects=False)
         self._get = get
 
     def _request_json(
@@ -309,10 +311,26 @@ class PublicSnapshotCollector:
         normalized = str(int(page_id))
         data = self._fetch_with_remaining_timeout(self._fetch_json, normalized, remaining_timeout)
         if not isinstance(data, dict):
-            raise RuntimeError(f"página indisponível: {normalized}")
-        html = str(data.get("body", {}).get("storage", {}).get("value", ""))
+            raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", f"página inválida: {normalized}")
+        body = data.get("body", {})
+        if not isinstance(body, dict):
+            raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", f"corpo inválido para página {normalized}")
+        storage = body.get("storage", {})
+        if not isinstance(storage, dict):
+            raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", f"armazenamento inválido para página {normalized}")
+        value = storage.get("value", "")
+        if not isinstance(value, str):
+            raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", f"conteúdo inválido para página {normalized}")
+        html = value
         version = data.get("version", {})
-        webui = str(data.get("_links", {}).get("webui", f"/pages/viewpage.action?pageId={normalized}"))
+        if not isinstance(version, dict):
+            raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", f"versão inválida para página {normalized}")
+        links = data.get("_links", {})
+        if not isinstance(links, dict):
+            raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", f"links inválidos para página {normalized}")
+        webui = links.get("webui", f"/pages/viewpage.action?pageId={normalized}")
+        if not isinstance(webui, str):
+            raise UpstreamError("UPSTREAM_TDN_INVALID_RESPONSE", f"link inválido para página {normalized}")
         return {
             "id": int(normalized),
             "title": str(data.get("title", f"page-{normalized}")),
