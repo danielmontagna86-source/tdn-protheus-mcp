@@ -66,28 +66,56 @@ class TdnHttpFetcher:
             get = requests.get
         self._get = get
 
-    def _request_json(self, url: str) -> dict[str, Any]:
-        response = self._get(url, timeout=self._timeout_seconds)
+    def _request_json(
+        self, url: str, *, remaining_timeout: Callable[[], float | None] | None = None
+    ) -> dict[str, Any]:
+        timeout = self._timeout_seconds
+        if remaining_timeout is not None:
+            remaining = remaining_timeout()
+            if remaining is not None:
+                if remaining <= 0:
+                    raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
+                timeout = min(timeout, remaining)
+        response = self._get(url, timeout=timeout)
         response.raise_for_status()
         data = response.json()
         if not isinstance(data, dict):
             raise RuntimeError("resposta TDN inválida")
         return data
 
-    def __call__(self, page_id: str) -> dict[str, Any] | None:
-        return self._request_json(f"{self._api_base}/content/{page_id}?expand=version,body.storage")
-
-    def fetch_children(self, page_id: str, *, limit: int = 50, start: int = 0) -> dict[str, Any]:
+    def __call__(
+        self, page_id: str, *, remaining_timeout: Callable[[], float | None] | None = None
+    ) -> dict[str, Any] | None:
         return self._request_json(
-            f"{self._api_base}/content/{page_id}/child/page?limit={limit}&start={start}"
+            f"{self._api_base}/content/{page_id}?expand=version,body.storage",
+            remaining_timeout=remaining_timeout,
         )
 
-    def list_children(self, page_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+    def fetch_children(
+        self,
+        page_id: str,
+        *,
+        limit: int = 50,
+        start: int = 0,
+        remaining_timeout: Callable[[], float | None] | None = None,
+    ) -> dict[str, Any]:
+        return self._request_json(
+            f"{self._api_base}/content/{page_id}/child/page?limit={limit}&start={start}",
+            remaining_timeout=remaining_timeout,
+        )
+
+    def list_children(
+        self,
+        page_id: str,
+        *,
+        limit: int = 50,
+        remaining_timeout: Callable[[], float | None] | None = None,
+    ) -> list[dict[str, Any]]:
         """Return every child page advertised by the public TDN pagination links."""
         url = f"{self._api_base}/content/{page_id}/child/page?limit={limit}&start=0"
         children: list[dict[str, Any]] = []
         while True:
-            response = self._request_json(url)
+            response = self._request_json(url, remaining_timeout=remaining_timeout)
             results = response.get("results", [])
             if not isinstance(results, list):
                 raise RuntimeError(f"lista de filhos inválida para página {page_id}")
@@ -121,12 +149,20 @@ class PublicSnapshotCollector:
 
     def __init__(
         self,
-        fetch_json: Callable[[str], dict[str, Any] | None],
+        fetch_json: Callable[..., dict[str, Any] | None],
         *,
-        fetch_children: Callable[[str], dict[str, Any] | list[dict[str, Any]] | None] | None = None,
+        fetch_children: Callable[..., dict[str, Any] | list[dict[str, Any]] | None] | None = None,
     ) -> None:
         self._fetch_json = fetch_json
         self._fetch_children = fetch_children
+
+    @staticmethod
+    def _fetch_with_remaining_timeout(
+        fetch: Callable[..., Any], page_id: str, remaining_timeout: Callable[[], float | None] | None
+    ) -> Any:
+        if remaining_timeout is None:
+            return fetch(page_id)
+        return fetch(page_id, remaining_timeout=remaining_timeout)
 
     def discover_tree(
         self,
@@ -135,6 +171,7 @@ class PublicSnapshotCollector:
         max_depth: int,
         max_pages: int,
         cancelled: Callable[[], bool] | None = None,
+        remaining_timeout: Callable[[], float | None] | None = None,
     ) -> list[str]:
         if self._fetch_children is None:
             raise RuntimeError("descoberta de árvore não foi configurada")
@@ -153,7 +190,7 @@ class PublicSnapshotCollector:
             discovered.append(page_id)
             if depth == max_depth:
                 continue
-            response = self._fetch_children(page_id)
+            response = self._fetch_with_remaining_timeout(self._fetch_children, page_id, remaining_timeout)
             if isinstance(response, dict):
                 children = response.get("results", [])
             elif isinstance(response, list):
@@ -167,9 +204,11 @@ class PublicSnapshotCollector:
                     queue.append((str(int(str(child["id"]))), depth + 1))
         return discovered
 
-    def fetch_page(self, page_id: str | int) -> dict[str, Any]:
+    def fetch_page(
+        self, page_id: str | int, *, remaining_timeout: Callable[[], float | None] | None = None
+    ) -> dict[str, Any]:
         normalized = str(int(page_id))
-        data = self._fetch_json(normalized)
+        data = self._fetch_with_remaining_timeout(self._fetch_json, normalized, remaining_timeout)
         if not isinstance(data, dict):
             raise RuntimeError(f"página indisponível: {normalized}")
         html = str(data.get("body", {}).get("storage", {}).get("value", ""))
@@ -211,18 +250,26 @@ class PublicSnapshotRefresher:
         }
 
     def __call__(
-        self, plan: RefreshPlan, *, cancelled: Callable[[], bool] | None = None
+        self,
+        plan: RefreshPlan,
+        *,
+        cancelled: Callable[[], bool] | None = None,
+        remaining_timeout: Callable[[], float | None] | None = None,
     ) -> dict[str, int]:
         writer = AtomicSnapshotWriter(self._cache_root / plan.root_id)
         try:
             page_ids = self._collector.discover_tree(
-                plan.root_id, max_depth=plan.max_depth, max_pages=plan.estimated_pages, cancelled=cancelled
+                plan.root_id,
+                max_depth=plan.max_depth,
+                max_pages=plan.estimated_pages,
+                cancelled=cancelled,
+                remaining_timeout=remaining_timeout,
             )
             pages: dict[str, dict[str, Any]] = {}
             for page_id in page_ids:
                 if cancelled and cancelled():
                     raise PolicyRefusal("POLICY_REFRESH_CANCELLED", "atualização cancelada durante coleta")
-                record = self._collector.fetch_page(page_id)
+                record = self._collector.fetch_page(page_id, remaining_timeout=remaining_timeout)
                 writer.write_page(record)
                 pages[page_id] = self._summary(record)
             completed_at = self._timestamp()

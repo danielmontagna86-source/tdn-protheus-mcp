@@ -92,6 +92,35 @@ class PublicSnapshotCollectorTests(unittest.TestCase):
         self.assertEqual(fetcher.list_children("10"), [{"id": "11"}, {"id": "12"}])
         self.assertEqual(len(calls), 2)
 
+    def test_http_fetcher_uses_the_remaining_global_budget_for_each_paginated_request(self) -> None:
+        calls = []
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return self.payload
+
+        payloads = [
+            {"results": [{"id": "11"}], "_links": {"next": "/rest/api/content/10/child/page?limit=50&start=1"}},
+            {"results": [{"id": "12"}], "_links": {}},
+        ]
+        remaining = iter([8.0, 3.0])
+        fetcher = TdnHttpFetcher(
+            "https://example.test/rest/api", timeout_seconds=20,
+            get=lambda url, timeout: calls.append((url, timeout)) or Response(payloads.pop(0)),
+        )
+
+        self.assertEqual(
+            fetcher.list_children("10", remaining_timeout=lambda: next(remaining)),
+            [{"id": "11"}, {"id": "12"}],
+        )
+        self.assertEqual([timeout for _url, timeout in calls], [8.0, 3.0])
+
     def test_collector_converts_a_page_to_snapshot_record_without_html(self) -> None:
         collector = PublicSnapshotCollector(lambda _url: {
             "id": "10", "title": "FWRest", "body": {"storage": {"value": "<h1>FWRest</h1><p>Use HTTP.</p>"}},

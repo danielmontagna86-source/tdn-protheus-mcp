@@ -32,13 +32,13 @@ class CliTests(unittest.TestCase):
                 self.api_base = api_base
                 self.timeout_seconds = timeout_seconds
 
-            def __call__(self, page_id):
+            def __call__(self, page_id, *, remaining_timeout=None):
                 return {
                     "id": page_id, "title": "Raiz", "body": {"storage": {"value": "<p>conteúdo</p>"}},
                     "version": {"number": 1}, "_links": {"webui": "/1"},
                 }
 
-            def list_children(self, _page_id):
+            def list_children(self, _page_id, *, remaining_timeout=None):
                 return []
 
         with tempfile.TemporaryDirectory() as temp_dir:

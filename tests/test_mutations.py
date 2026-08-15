@@ -48,6 +48,20 @@ class RefreshOperationsTests(unittest.TestCase):
         with self.assertRaisesRegex(PolicyRefusal, "POLICY_REFRESH_TIMEOUT"):
             adapter(plan, timeout_seconds=5)
 
+    def test_public_refresh_adapter_passes_a_remaining_budget_to_the_collector(self) -> None:
+        observed = []
+
+        def collector(_plan, *, cancelled, remaining_timeout):
+            cancelled()
+            observed.append(remaining_timeout())
+            return {"changed": 1}
+
+        adapter = SnapshotRefreshAdapter(collector, clock=lambda: 10.0)
+        plan = RefreshOperations(McpConfig(cache_root=Path(tempfile.gettempdir()) / "cache", allowed_root_ids=frozenset({"1"}))).plan_snapshot_refresh("1", max_depth=1, max_pages=10)
+
+        self.assertEqual(adapter(plan, timeout_seconds=5), {"changed": 1})
+        self.assertEqual(observed, [5.0])
+
     def test_plan_is_offline_read_only_and_bounded(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_root = Path(temp_dir) / "cache"
