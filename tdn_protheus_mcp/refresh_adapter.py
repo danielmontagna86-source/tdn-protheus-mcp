@@ -37,6 +37,14 @@ class SnapshotRefreshAdapter:
                 raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
             return False
 
+        def remaining_timeout() -> float | None:
+            if deadline is None:
+                return None
+            remaining = deadline - self._clock()
+            if remaining <= 0:
+                raise PolicyRefusal("POLICY_REFRESH_TIMEOUT", "o prazo de atualização expirou durante a coleta")
+            return remaining
+
         if check_cancelled():
             raise PolicyRefusal("POLICY_REFRESH_CANCELLED", "atualização cancelada antes de iniciar")
-        return self._collector(plan, cancelled=check_cancelled)
+        return self._collector(plan, cancelled=check_cancelled, remaining_timeout=remaining_timeout)

@@ -48,6 +48,20 @@ class RefreshOperationsTests(unittest.TestCase):
         with self.assertRaisesRegex(PolicyRefusal, "POLICY_REFRESH_TIMEOUT"):
             adapter(plan, timeout_seconds=5)
 
+    def test_public_refresh_adapter_passes_a_remaining_budget_to_the_collector(self) -> None:
+        observed = []
+
+        def collector(_plan, *, cancelled, remaining_timeout):
+            cancelled()
+            observed.append(remaining_timeout())
+            return {"changed": 1}
+
+        adapter = SnapshotRefreshAdapter(collector, clock=lambda: 10.0)
+        plan = RefreshOperations(McpConfig(cache_root=Path(tempfile.gettempdir()) / "cache", allowed_root_ids=frozenset({"1"}))).plan_snapshot_refresh("1", max_depth=1, max_pages=10)
+
+        self.assertEqual(adapter(plan, timeout_seconds=5), {"changed": 1})
+        self.assertEqual(observed, [5.0])
+
     def test_plan_is_offline_read_only_and_bounded(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_root = Path(temp_dir) / "cache"
@@ -100,7 +114,7 @@ class RefreshOperationsTests(unittest.TestCase):
             exported = operations.export_hermes_context("1", "advpl-context.jsonl")
 
             self.assertEqual(exported.name, "advpl-context.jsonl")
-            self.assertEqual(exported.parent, cache_root / "exports")
+            self.assertEqual(exported.parent, (cache_root / "exports").resolve())
             self.assertIn('"source_url": "https://tdn.totvs.com/10"', exported.read_text(encoding="utf-8"))
             audit_event = json.loads((cache_root / "audit.jsonl").read_text(encoding="utf-8"))
             self.assertEqual(audit_event["operation"], "export_hermes_context")

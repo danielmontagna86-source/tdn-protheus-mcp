@@ -4,6 +4,7 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from tdn_protheus_mcp import __version__
 
 ROOT = Path(__file__).parents[1]
 
@@ -14,6 +15,7 @@ class PackageMetadataTests(unittest.TestCase):
             project = tomllib.load(handle)["project"]
 
         self.assertEqual(project["name"], "tdn-protheus-mcp")
+        self.assertEqual(__version__, project["version"])
         self.assertEqual(project["requires-python"], ">=3.11")
         self.assertEqual(project["scripts"]["tdn-protheus-mcp"], "tdn_protheus_mcp.cli:main")
         self.assertIn("Apache-2.0", project["license"])

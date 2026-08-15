@@ -4,7 +4,7 @@ Todas as mudanças relevantes deste projeto serão registradas neste arquivo.
 
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/). 
 
-## [0.2.0] - 2026-08-15
+## [0.3.0] - 2026-08-15
 
 ### Added
 
@@ -13,11 +13,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 - Guias de instalação e configuração para Claude Code, Codex e hosts MCP genéricos.
 - Contrato de protocolo, documentação de segurança e decisão de distribuição.
 
-## [0.1.0] - 2026-08-15
+### Changed
 
-### Added
-
-- Skill portátil para Claude Code, Codex, Antigravity, OpenRouter e contexto Hermes Agent.
-- Coleta TDN com processamento JSONL, snapshot local retomável, refresh incremental e exportação offline.
-- Validação estrutural, testes unitários e empacotador ZIP.
-- Proteção contra substituição silenciosa no instalador e exclusão de dados locais no pacote.
+- Refresh opcional com paginação completa, prazo global propagado a cada chamada HTTP e erros TDN estáveis.
+- Publicação de snapshots por geração imutável e invalidação do índice FTS quando o conteúdo é atualizado.

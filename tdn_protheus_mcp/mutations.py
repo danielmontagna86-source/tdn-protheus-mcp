@@ -38,7 +38,11 @@ class SnapshotRefreshRunner(Protocol):
     """Explicit refresh boundary so collector failures are never reinterpreted."""
 
     def __call__(
-        self, plan: RefreshPlan, *, cancelled: Callable[[], bool] | None = None
+        self,
+        plan: RefreshPlan,
+        *,
+        cancelled: Callable[[], bool] | None = None,
+        remaining_timeout: Callable[[], float | None] | None = None,
     ) -> dict[str, int]: ...
 
 

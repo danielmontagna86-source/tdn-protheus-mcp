@@ -41,8 +41,19 @@ class SnapshotStatus:
     last_complete_at: str | None = None
 
 
-@dataclass(frozen=True)
+@dataclass
 class PolicyRefusal(Exception):
+    code: str
+    message: str
+
+    def __str__(self) -> str:
+        return f"{self.code}: {self.message}"
+
+
+@dataclass
+class UpstreamError(Exception):
+    """A stable failure from the explicitly configured external TDN endpoint."""
+
     code: str
     message: str
 

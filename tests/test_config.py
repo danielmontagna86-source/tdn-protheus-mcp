@@ -36,6 +36,14 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(ConfigError, "CONFIG_UNKNOWN_FIELD"):
                 load_config(config_path)
 
+    def test_load_config_rejects_non_numeric_root_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "mcp.json"
+            config_path.write_text(json.dumps({"cache_root": temp_dir, "allowed_root_ids": ["../escape"]}), encoding="utf-8")
+
+            with self.assertRaisesRegex(ConfigError, "CONFIG_INVALID_ROOTS"):
+                load_config(config_path)
+
     def test_load_config_accepts_an_explicit_public_refresh_endpoint(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "mcp.json"
