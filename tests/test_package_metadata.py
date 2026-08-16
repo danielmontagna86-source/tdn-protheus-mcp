@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import tomllib
 import unittest
 from pathlib import Path
+
 from tdn_protheus_mcp import __version__
 
 ROOT = Path(__file__).parents[1]
