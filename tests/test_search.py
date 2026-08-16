@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import json
 import tempfile
 import unittest
 from pathlib import Path
+
 from tdn_protheus_mcp.config import McpConfig
 from tdn_protheus_mcp.contracts import PolicyRefusal
 from tdn_protheus_mcp.indexer import SnapshotIndexer
@@ -46,7 +48,7 @@ class SnapshotSearchTests(unittest.TestCase):
 
     def test_search_rejects_stale_index(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            policy, repo, search = prepare(temp_dir, [{"id": 10, "title": "FWRest", "url": "https://tdn/10", "text": "FWRest usa REST."}])
+            policy, _repo, search = prepare(temp_dir, [{"id": 10, "title": "FWRest", "url": "https://tdn/10", "text": "FWRest usa REST."}])
             manifest = policy.cache_root / "1" / "manifest.json"
             data = json.loads(manifest.read_text())
             data["updated_at"] = "changed"
