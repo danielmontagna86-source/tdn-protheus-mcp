@@ -82,7 +82,7 @@ class SnapshotV2IntegrationTests(unittest.TestCase):
             updated = search.search(policy.search_query("PLRSTPR1", "1", 8, 12000), routine="PLRSTPR1")
             self.assertEqual([item.page_id for item in updated], ["20"])
 
-    def test_page_directory_cannot_escape_snapshot_root(self) -> None:
+    def test_page_directory_cannot_escape_cache_root(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_root = Path(temp_dir) / "cache"
             root = cache_root / "1"
@@ -99,6 +99,31 @@ class SnapshotV2IntegrationTests(unittest.TestCase):
             policy = SnapshotPolicy(McpConfig(cache_root=cache_root, allowed_root_ids=frozenset({"1"})))
             repository = SnapshotRepository(policy)
             with self.assertRaisesRegex(PolicyRefusal, "POLICY_PATH_OUTSIDE_CACHE"):
+                repository.read_active_page("1", "10")
+
+    def test_page_directory_cannot_cross_to_sibling_root_inside_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_root = Path(temp_dir) / "cache"
+            root1 = cache_root / "1"
+            root2_pages = cache_root / "2" / "pages"
+            root1.mkdir(parents=True)
+            root2_pages.mkdir(parents=True)
+            (root2_pages / "10.json").write_text(
+                json.dumps({"id": 10, "title": "Outra raiz", "url": "https://tdn/10", "text": "segredo lógico"}),
+                encoding="utf-8",
+            )
+            (root1 / "manifest.json").write_text(
+                json.dumps({
+                    "schema_version": 2,
+                    "root_id": 1,
+                    "page_directory": "../2/pages",
+                    "pages": {"10": {"status": "active"}},
+                }),
+                encoding="utf-8",
+            )
+            policy = SnapshotPolicy(McpConfig(cache_root=cache_root, allowed_root_ids=frozenset({"1"})))
+            repository = SnapshotRepository(policy)
+            with self.assertRaisesRegex(PolicyRefusal, "POLICY_SNAPSHOT_INVALID"):
                 repository.read_active_page("1", "10")
 
 
