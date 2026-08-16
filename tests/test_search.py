@@ -83,6 +83,33 @@ class SnapshotSearchTests(unittest.TestCase):
 
             self.assertEqual([result.page_id for result in results], ["10"])
 
+    def test_search_returns_no_result_for_a_routine_absent_from_the_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_root = Path(temp_dir) / "cache"
+            pages_dir = cache_root / "1" / "pages"
+            pages_dir.mkdir(parents=True)
+            (pages_dir / "10.json").write_text(json.dumps({
+                "id": 10,
+                "title": "Ponto de Entrada PLRSTPR1",
+                "url": "https://tdn.totvs.com/10",
+                "text": "PLRSTPR1 recebe PARAMIXB e retorna o valor processado.",
+                "fetched_at": "2026-08-15",
+            }), encoding="utf-8")
+            (cache_root / "1" / "manifest.json").write_text(
+                json.dumps({"root_id": 1, "pages": {"10": {"status": "active"}}}),
+                encoding="utf-8",
+            )
+            policy = SnapshotPolicy(McpConfig(cache_root=cache_root, allowed_root_ids=frozenset({"1"})))
+            repository = SnapshotRepository(policy)
+            SnapshotIndexer(repository, policy).build("1")
+
+            results = SnapshotSearch(policy).search(
+                policy.search_query("PLRSTPR1", "1", 8, 12000),
+                routine="MT103VALIDAITENSXYZ",
+            )
+
+            self.assertEqual(results, ())
+
 
 if __name__ == "__main__":
     unittest.main()

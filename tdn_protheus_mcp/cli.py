@@ -48,13 +48,16 @@ def doctor_payload(config: McpConfig) -> dict[str, Any]:
 
 
 def _refresh_operations(config: McpConfig) -> RefreshOperations:
-    fetcher = TdnHttpFetcher(config.tdn_api_base, timeout_seconds=config.refresh_timeout_seconds)
-    collector = PublicSnapshotCollector(fetcher, fetch_children=fetcher.list_children)
-    runner = SnapshotRefreshAdapter(
-        PublicSnapshotRefresher(collector, config.cache_root),
-        default_timeout_seconds=config.refresh_timeout_seconds,
-    )
-    return RefreshOperations(config, refresh_runner=runner)
+    def refresh_runner(plan: Any, *, cancelled: Any = None, remaining_timeout: Any = None) -> dict[str, int]:
+        fetcher = TdnHttpFetcher(config.tdn_api_base, timeout_seconds=config.refresh_timeout_seconds)
+        collector = PublicSnapshotCollector(fetcher, fetch_children=fetcher.list_children)
+        runner = SnapshotRefreshAdapter(
+            PublicSnapshotRefresher(collector, config.cache_root),
+            default_timeout_seconds=config.refresh_timeout_seconds,
+        )
+        return runner(plan, cancelled=cancelled)
+
+    return RefreshOperations(config, refresh_runner=refresh_runner)
 
 
 def _parser() -> argparse.ArgumentParser:
