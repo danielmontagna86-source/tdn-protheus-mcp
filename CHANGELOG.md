@@ -2,6 +2,13 @@
 
 Todas as mudanças relevantes deste projeto serão registradas neste arquivo.
 
+## [0.4.1] - 2026-08-16
+
+### Changed
+
+- Plano 02: correção do warning de Pydantic/MCP 1.x, Actions Node 24 e gates CodeQL/Dependency Review.
+- Validação de distribuição inclui `setuptools>=83`, SBOM e SHA256.
+
 ## [0.4.0] - 2026-08-16
 
 ### Changed

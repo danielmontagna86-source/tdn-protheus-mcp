@@ -1,0 +1,32 @@
+name: CodeQL Alert Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+  security-events: read
+
+jobs:
+  codeql-alert-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail on open High or Critical CodeQL alerts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate \
+            "/repos/${GITHUB_REPOSITORY}/code-scanning/alerts?state=open&per_page=100" \
+            --jq '.[] | select((.rule.security_severity_level // "") | IN("high", "critical")) | [.number, .rule.id, .rule.security_severity_level] | @json' \
+            > codeql-high-critical.json
+          if [ -s codeql-high-critical.json ]; then
+            echo "Open High/Critical CodeQL alerts:"
+            cat codeql-high-critical.json
+            exit 1
+          fi
+          echo "CodeQL gate passed: no open High/Critical alerts."

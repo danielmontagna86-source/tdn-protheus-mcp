@@ -12,7 +12,8 @@ ROOT = Path(__file__).parents[1]
 class PackageMetadataTests(unittest.TestCase):
     def test_project_declares_read_only_mcp_package(self) -> None:
         with (ROOT / "pyproject.toml").open("rb") as handle:
-            project = tomllib.load(handle)["project"]
+            metadata = tomllib.load(handle)
+        project = metadata["project"]
         release_version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
         self.assertEqual(project["name"], "tdn-protheus-mcp")
@@ -25,6 +26,7 @@ class PackageMetadataTests(unittest.TestCase):
         )
         self.assertNotIn("optional-dependencies", project)
         self.assertEqual(project["dependencies"], ["mcp>=1.0,<2"])
+        self.assertEqual(metadata["build-system"]["requires"], ["setuptools>=83"])
 
 
 if __name__ == "__main__":

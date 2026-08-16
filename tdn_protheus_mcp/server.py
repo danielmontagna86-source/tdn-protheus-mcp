@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import Settings as FastMCPSettings
 
 from .config import McpConfig, load_config
 from .context_assembler import ContextAssembler
@@ -23,6 +24,10 @@ def _status_payload(status: SnapshotStatus) -> dict[str, Any]:
 
 
 def create_server(config: McpConfig) -> FastMCP:
+    # MCP 1.x declares `Settings.lifespan` with a generic forward reference.
+    # Rebuilding the model before BaseSettings reads environment sources resolves
+    # that reference with Pydantic's public API instead of suppressing its warning.
+    FastMCPSettings.model_rebuild()
     policy = SnapshotPolicy(config)
     repository = SnapshotRepository(policy)
     search = SnapshotSearch(policy)
