@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import json
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+
 from tdn_protheus_mcp.config import McpConfig
 from tdn_protheus_mcp.indexer import SCHEMA_VERSION, SnapshotIndexer
 from tdn_protheus_mcp.policy import SnapshotPolicy
