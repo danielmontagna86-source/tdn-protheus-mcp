@@ -238,7 +238,7 @@ class SnapshotIndexer:
                             "routines",
                             "entry_points",
                         ):
-                            singular = kind[:-1] if kind.endswith("s") else kind
+                            singular = kind.removesuffix("s")
                             connection.executemany(
                                 "INSERT OR IGNORE INTO chunk_tags"
                                 "(chunk_id, kind, value) VALUES (?, ?, ?)",
