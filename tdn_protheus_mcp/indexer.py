@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,7 @@ from .snapshot_repository import SnapshotRepository
 
 SCHEMA_VERSION = 1
 CHUNK_SIZE = 2_000
+_ROUTINE = re.compile(r"\b(?:MATA|FINA|CTBA|FISA|ATFA|CNTA|SPED)[A-Z0-9]{3,}\b", re.I)
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,9 @@ def _chunks(text: str) -> Iterator[str]:
 
 def _metadata(record: dict[str, Any], field: str) -> str:
     value = record.get(field, [])
+    if field == "routines" and (not isinstance(value, list) or not value):
+        source = f"{record.get('title', '')}\n{record.get('text', '')}"
+        value = sorted({item.upper() for item in _ROUTINE.findall(source)})
     return json.dumps(value if isinstance(value, list) else [], ensure_ascii=False, sort_keys=True)
 
 
@@ -74,6 +79,7 @@ class SnapshotIndexer:
 
     def build(self, root_id: str) -> IndexBuild:
         normalized = self._policy.require_root(root_id)
+        self._repository.status(normalized)
         index_path = self._index_path(normalized)
         temporary_path = index_path.with_suffix(".sqlite3.tmp")
         if temporary_path.exists():

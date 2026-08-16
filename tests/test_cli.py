@@ -140,6 +140,23 @@ class CliTests(unittest.TestCase):
             self.assertTrue(payload["config"]["offline"])
             self.assertEqual(payload["diagnostics"][0]["code"], "SNAPSHOT_NOT_FOUND")
 
+    def test_index_missing_snapshot_emits_a_structured_policy_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_root = Path(temp_dir) / "cache"
+            config_path = Path(temp_dir) / "mcp.json"
+            config_path.write_text(json.dumps({"cache_root": str(cache_root), "allowed_root_ids": ["1"]}), encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, "-m", "tdn_protheus_mcp", "index", "--config", str(config_path), "--root-id", "1", "--json"],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["error"]["code"], "POLICY_SNAPSHOT_NOT_FOUND")
+
     def test_index_search_and_status_emit_structured_local_results(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_root = Path(temp_dir) / "cache"
