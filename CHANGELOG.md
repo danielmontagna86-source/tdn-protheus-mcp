@@ -17,3 +17,4 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 - Refresh opcional com paginação completa, prazo global propagado a cada chamada HTTP e erros TDN estáveis.
 - Publicação de snapshots por geração imutável e invalidação do índice FTS quando o conteúdo é atualizado.
+- Indexação de cache sem manifesto agora devolve `POLICY_SNAPSHOT_NOT_FOUND` estruturado; metadados de rotina são derivados ao indexar snapshots v1 que não os persistem.
