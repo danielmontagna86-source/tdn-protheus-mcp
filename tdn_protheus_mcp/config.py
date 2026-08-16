@@ -82,7 +82,7 @@ def load_config(path: str | Path) -> McpConfig:
     if unknown_fields:
         raise ConfigError(
             "CONFIG_UNKNOWN_FIELD",
-            f"campo não permitido: {sorted(unknown_fields)[0]}",
+            f"campo não permitido: {min(unknown_fields)}",
         )
     if (
         data.get("offline", True) is not True
