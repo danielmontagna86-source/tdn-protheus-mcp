@@ -3,26 +3,14 @@
 Requisito: Python 3.11+ e SQLite com FTS5. Prefira `uvx` ou `pipx` para isolar a ferramenta.
 
 ```bash
-uvx --from "tdn-protheus-mcp[snapshot]" tdn-protheus-mcp --help
+uvx --from tdn-protheus-mcp tdn-protheus-mcp --help
 # ou
-pipx install "tdn-protheus-mcp[snapshot]"
+pipx install tdn-protheus-mcp
 ```
 
-Enquanto o pacote ainda não estiver no PyPI, a instalação direta pelo repositório público é equivalente:
-
-```bash
-pipx install "tdn-protheus-mcp[snapshot] @ git+https://github.com/danielmontagna86-source/tdn-protheus-mcp.git"
-```
-
-Crie a configuração a partir de `tdn-protheus-mcp.config.example.json`; mantenha `offline: true` e `allow_mutations: false`. Importe um snapshot compatível ou atualize-o explicitamente pelo comando `apply-refresh`, valide-o e crie o índice:
+Crie a configuração a partir de `tdn-protheus-mcp.config.example.json`. O MCP aceita apenas operação local e somente leitura. Gere ou atualize o snapshot usando a Skill complementar e depois execute:
 
 ```bash
 tdn-protheus-mcp doctor --config ./tdn-protheus-mcp.config.json --json
 tdn-protheus-mcp index --config ./tdn-protheus-mcp.config.json --root-id 235312129 --json
 ```
-
-Remoção: `pipx uninstall tdn-protheus-mcp`. A remoção do pacote não apaga o snapshot local.
-
-## Usar com a skill complementar
-
-Para instalar a skill `coletando-documentacao-tdn-protheus`, manter um snapshot por ela e servi-lo com este MCP, siga o guia de [skill complementar e cache compartilhado](companion-skill.md). A skill é opcional e permanece em seu [repositório próprio](https://github.com/danielmontagna86-source/tdn-protheus-skill-kit); ela não é instalada automaticamente pelo pacote Python.

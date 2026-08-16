@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tdn-protheus-mcp"
 version = "0.3.1"
-description = "Local and cited MCP access to a user-controlled TDN Protheus snapshot."
+description = "Read-only local and cited MCP access to a user-controlled TDN Protheus snapshot."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
@@ -21,13 +21,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = ["mcp>=1.0,<2"]
-
-[project.optional-dependencies]
-snapshot = [
-    "requests>=2.31,<3",
-    "beautifulsoup4>=4.12,<5",
-    "langchain-text-splitters>=0.3,<2",
-]
 
 [project.urls]
 Homepage = "https://github.com/danielmontagna86-source/tdn-protheus-mcp"

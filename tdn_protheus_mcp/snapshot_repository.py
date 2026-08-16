@@ -1,13 +1,15 @@
-"""Read-only access to the public local snapshot format."""
-
+"""Read-only access to the portable local snapshot format."""
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Iterator
 
 from .contracts import PolicyRefusal, SnapshotStatus
 from .policy import SnapshotPolicy
+
+_SUPPORTED_SCHEMA_VERSIONS = {1, 2}
 
 
 class SnapshotRepository:
@@ -30,6 +32,14 @@ class SnapshotRepository:
             raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", f"manifest inválido para root_id={normalized}") from error
         if not isinstance(data, dict) or not isinstance(data.get("pages"), dict):
             raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", f"manifest sem páginas para root_id={normalized}")
+        schema_version = data.get("schema_version", 1)
+        if schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
+            raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", f"schema_version não suportado: {schema_version}")
+        manifest_root = data.get("root_id")
+        if manifest_root is not None and str(manifest_root) != normalized:
+            raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", "root_id do manifesto não corresponde à configuração")
+        if any(not str(page_id).isdigit() for page_id in data["pages"]):
+            raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", "manifest contém page_id inválido")
         return normalized, root, data
 
     def _pages_dir(self, root: Path, manifest: dict[str, Any]) -> Path:
@@ -44,9 +54,14 @@ class SnapshotRepository:
             normalized = str(int(str(page_id)))
         except ValueError as error:
             raise PolicyRefusal("POLICY_PAGE_NOT_ALLOWED", "page_id deve ser numérico") from error
-        if int(normalized) < 0:
+        if int(normalized) <= 0:
             raise PolicyRefusal("POLICY_PAGE_NOT_ALLOWED", "page_id deve ser positivo")
         return normalized
+
+    def snapshot_fingerprint(self, root_id: str) -> str:
+        _normalized, _root, manifest = self._manifest(root_id)
+        canonical = json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(canonical).hexdigest()
 
     def read_active_page(self, root_id: str, page_id: str | int) -> dict[str, Any]:
         normalized_root, root, manifest = self._manifest(root_id)

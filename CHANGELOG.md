@@ -2,14 +2,28 @@
 
 Todas as mudanças relevantes deste projeto serão registradas neste arquivo.
 
-O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
+O formato segue Keep a Changelog e Semantic Versioning.
+
+## [Unreleased]
+
+### Changed
+
+- MCP simplificado para operação estritamente local e somente leitura; capacidades de refresh/export mutáveis foram removidas.
+- Índice FTS5 agora é vinculado ao fingerprint do snapshot e buscas recusam índice desatualizado com `POLICY_INDEX_STALE`.
+- Metadados de módulo, tabela, parâmetro, rotina e ponto de entrada passam a ser derivados durante a indexação.
+- Filtros de busca são aplicados no SQL antes do `LIMIT`.
+- Chunking passou a respeitar preferencialmente quebras textuais e pequeno overlap.
+
+### Removed
+
+- Coletor HTTP, refresh adapter, audit log de mutações e operações mutáveis do MCP.
 
 ## [0.3.1] - 2026-08-16
 
 ### Fixed
 
-- A indexação de snapshot inexistente retorna o erro de política estruturado `POLICY_SNAPSHOT_NOT_FOUND`.
-- A derivação de rotina em snapshots v1 cobre identificadores documentais como `PLRSTPR1`.
+- A indexação de snapshot inexistente retorna `POLICY_SNAPSHOT_NOT_FOUND`.
+- A derivação de rotina em snapshots v1 cobre identificadores como `PLRSTPR1`.
 - O modo offline recusa refresh antes de inicializar o coletor HTTP.
 
 ## [0.3.0] - 2026-08-15
@@ -17,12 +31,4 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ### Added
 
 - Pacote público `tdn-protheus-mcp` com CLI, configuração segura e índice SQLite FTS5 local.
-- Servidor MCP `stdio` read-only com tools, resources, prompts e citações rastreáveis.
-- Guias de instalação e configuração para Claude Code, Codex e hosts MCP genéricos.
-- Contrato de protocolo, documentação de segurança e decisão de distribuição.
-
-### Changed
-
-- Refresh opcional com paginação completa, prazo global propagado a cada chamada HTTP e erros TDN estáveis.
-- Publicação de snapshots por geração imutável e invalidação do índice FTS quando o conteúdo é atualizado.
-- Indexação de cache sem manifesto agora devolve `POLICY_SNAPSHOT_NOT_FOUND` estruturado; metadados de rotina são derivados ao indexar snapshots v1 que não os persistem.
+- Servidor MCP `stdio` com tools, resources, prompts e citações rastreáveis.
