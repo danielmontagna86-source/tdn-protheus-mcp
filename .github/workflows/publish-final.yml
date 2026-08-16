@@ -1,0 +1,68 @@
+name: Publish Final MCP 0.4.0
+
+on:
+  push:
+    branches: [hardening/full-validation]
+    paths: ['.github/workflows/publish-final.yml']
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: a87f3e42656c25ebef5f05b3d6dd7596719f9a83
+      RELEASE_TAG: v0.4.0
+    steps:
+      - name: Checkout validated merge
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.TARGET_SHA }}
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Verify release version
+        run: test "v$(tr -d '\n' < VERSION)" = "$RELEASE_TAG"
+      - name: Install validation dependencies
+        run: python -m pip install --upgrade pip && python -m pip install . build twine cyclonedx-bom coverage ruff pip-audit
+      - name: Validate quality gates
+        run: |
+          python -m ruff check tdn_protheus_mcp tests examples
+          python -m coverage run --branch -m unittest discover -s tests -p 'test_*.py' -v
+          python -m coverage report --fail-under=75
+          python -m pip_audit
+      - name: Build release assets
+        run: |
+          mkdir -p dist
+          python -m build
+          python -m twine check dist/*.whl dist/*.tar.gz
+          python -m cyclonedx_py environment --output-file dist/sbom.cdx.json --of JSON
+          cd dist
+          sha256sum *.whl *.tar.gz sbom.cdx.json > SHA256SUMS.txt
+      - name: Create immutable release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${RELEASE_TAG} already exists"
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${RELEASE_TAG}" -f sha="${TARGET_SHA}"
+          fi
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* --target "$TARGET_SHA" --generate-notes --title "TDN Protheus MCP $RELEASE_TAG"
+          fi
+      - name: Dispatch official PyPI publish workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '{"ref":"main","inputs":{"tag":"%s"}}' "$RELEASE_TAG" | gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-pypi.yml/dispatches" --input -
