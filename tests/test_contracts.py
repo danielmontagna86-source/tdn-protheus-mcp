@@ -3,7 +3,12 @@ from __future__ import annotations
 import unittest
 from dataclasses import FrozenInstanceError
 
-from tdn_protheus_mcp.contracts import ContextBundle, SearchQuery, SearchResult, SnapshotStatus
+from tdn_protheus_mcp.contracts import (
+    ContextBundle,
+    SearchQuery,
+    SearchResult,
+    SnapshotStatus,
+)
 
 
 class ContractsTests(unittest.TestCase):
