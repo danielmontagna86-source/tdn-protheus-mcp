@@ -2,16 +2,23 @@
 
 Todas as mudanças relevantes deste projeto serão registradas neste arquivo.
 
-## [Unreleased]
+## [0.4.0] - 2026-08-16
 
 ### Changed
 
 - MCP simplificado para operação estritamente local e somente leitura; capacidades de refresh/export mutáveis foram removidas.
 - Índice FTS5 agora é vinculado ao fingerprint do snapshot e buscas recusam índice desatualizado com `POLICY_INDEX_STALE`.
+- Leitor aceita snapshots schema v1 e v2 e respeita `page_directory`, confinado à própria raiz autorizada.
 - Metadados de módulo, tabela, parâmetro, rotina e ponto de entrada passam a ser derivados durante a indexação.
 - Filtros de busca são aplicados no SQL antes do `LIMIT`.
-- Chunking passou a respeitar preferencialmente quebras textuais e overlap.
-- CI/release deixaram de instalar o antigo extra `[snapshot]` e passaram a exigir cobertura de branch mínima de 75%.
+- Chunking passou a respeitar preferencialmente quebras textuais com overlap, e o contexto pode manter até dois chunks relevantes da mesma página dentro do orçamento.
+- CI/release deixaram de instalar o antigo extra `[snapshot]` e exigem Ruff, cobertura de branch mínima de 75%, auditoria de dependências, build/Twine, smoke `stdio` e SBOM.
+
+### Added
+
+- Gate de avaliação sintética para citation recall e no-evidence accuracy, incluindo identificador propositalmente inexistente.
+- Teste de integração do snapshot v2 que valida geração ativa, detecção de índice stale e reindexação.
+- Proteção contra `page_directory` apontando para outra raiz dentro do mesmo `cache_root`.
 
 ### Removed
 
