@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tdn-protheus-mcp"
-version = "0.3.1"
+version = "0.4.0"
 description = "Read-only local and cited MCP access to a user-controlled TDN Protheus snapshot."
 readme = "README.md"
 requires-python = ">=3.11"
