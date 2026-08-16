@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 
 import anyio
@@ -14,12 +15,19 @@ from pydantic import AnyUrl
 from tdn_protheus_mcp.config import McpConfig
 from tdn_protheus_mcp.indexer import SnapshotIndexer
 from tdn_protheus_mcp.policy import SnapshotPolicy
+from tdn_protheus_mcp.server import create_server
 from tdn_protheus_mcp.snapshot_repository import SnapshotRepository
 
 ROOT = Path(__file__).parents[1]
 
 
 class McpServerTests(unittest.TestCase):
+    def test_server_resolves_mcp_settings_forward_reference_without_suppression(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, warnings.catch_warnings(record=True) as seen:
+            warnings.simplefilter("always")
+            create_server(McpConfig(cache_root=Path(temp_dir), allowed_root_ids=frozenset({"1"})))
+        self.assertFalse(any(item.category.__name__ == "IncompleteFieldDefinitionWarning" for item in seen), seen)
+
     def test_stdio_server_exposes_read_only_tools_resources_and_prompts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_root = Path(temp_dir) / "cache"
