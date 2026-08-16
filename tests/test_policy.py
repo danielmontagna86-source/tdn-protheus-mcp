@@ -1,17 +1,12 @@
 from __future__ import annotations
 
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-
-ROOT = Path(__file__).parents[1]
-sys.path.insert(0, str(ROOT))
-
-from tdn_protheus_mcp.config import McpConfig  # noqa: E402
-from tdn_protheus_mcp.contracts import PolicyRefusal  # noqa: E402
-from tdn_protheus_mcp.policy import SnapshotPolicy  # noqa: E402
+from tdn_protheus_mcp.config import McpConfig
+from tdn_protheus_mcp.contracts import PolicyRefusal
+from tdn_protheus_mcp.policy import SnapshotPolicy
 
 
 class SnapshotPolicyTests(unittest.TestCase):

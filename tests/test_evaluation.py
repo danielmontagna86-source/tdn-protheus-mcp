@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import unittest
 import json
 import tempfile
+import unittest
 from pathlib import Path
 
 from tdn_protheus_mcp.config import McpConfig
@@ -14,36 +14,65 @@ from tdn_protheus_mcp.snapshot_repository import SnapshotRepository
 
 
 class EvaluationTests(unittest.TestCase):
-    def test_evaluation_reports_citation_recall_for_synthetic_results(self) -> None:
+    def test_evaluation_separates_citation_recall_from_no_evidence_accuracy(self) -> None:
         cases = (
             EvaluationCase(question="FWRest", expected_source_urls=frozenset({"https://tdn/10"})),
             EvaluationCase(question="MVC", expected_source_urls=frozenset({"https://tdn/20"})),
+            EvaluationCase(question="INVENTADO", expected_source_urls=frozenset()),
         )
-        results = {"FWRest": ("https://tdn/10",), "MVC": ("https://tdn/20", "https://tdn/30")}
+        results = {
+            "FWRest": ("https://tdn/10",),
+            "MVC": ("https://tdn/20", "https://tdn/30"),
+            "INVENTADO": (),
+        }
 
         report = evaluate(cases, lambda question: results[question])
 
-        self.assertEqual(report.cases, 2)
+        self.assertEqual(report.cases, 3)
+        self.assertEqual(report.evidence_cases, 2)
+        self.assertEqual(report.no_evidence_cases, 1)
         self.assertEqual(report.citation_recall, 1.0)
-        self.assertEqual(report.exact_source_rate, 0.5)
+        self.assertEqual(report.no_evidence_accuracy, 1.0)
+        self.assertEqual(report.exact_source_rate, 2 / 3)
 
-    def test_evaluation_runs_against_a_real_synthetic_snapshot_index(self) -> None:
+    def test_evaluation_penalizes_false_evidence_for_no_evidence_case(self) -> None:
+        report = evaluate(
+            (EvaluationCase(question="MT103VALIDAITENSXYZ", expected_source_urls=frozenset()),),
+            lambda _question: ("https://tdn/falso",),
+        )
+        self.assertEqual(report.no_evidence_accuracy, 0.0)
+        self.assertEqual(report.exact_source_rate, 0.0)
+
+    def test_critical_snapshot_gate_has_perfect_recall_and_no_evidence_accuracy(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_root = Path(temp_dir) / "cache"
             pages = cache_root / "1" / "pages"
             pages.mkdir(parents=True)
-            (pages / "10.json").write_text(json.dumps({"id": 10, "title": "FWRest", "url": "https://fixture/10", "text": "FWRest chama serviços REST.", "fetched_at": "2026-08-15"}), encoding="utf-8")
-            (pages / "20.json").write_text(json.dumps({"id": 20, "title": "MVC", "url": "https://fixture/20", "text": "MVC organiza telas Protheus.", "fetched_at": "2026-08-15"}), encoding="utf-8")
-            (cache_root / "1" / "manifest.json").write_text(json.dumps({"root_id": 1, "pages": {"10": {"status": "active"}, "20": {"status": "active"}}}), encoding="utf-8")
+            fixtures = [
+                {"id": 10, "title": "MATA103 Documento de Entrada", "url": "https://fixture/mata103", "text": "MATA103 processa Documento de Entrada e usa SD1.", "fetched_at": "2026-08-15"},
+                {"id": 20, "title": "Ponto de Entrada PLRSTPR1", "url": "https://fixture/plrstpr1", "text": "PLRSTPR1 recebe PARAMIXB para a API de procedimentos.", "fetched_at": "2026-08-15"},
+            ]
+            manifest_pages = {}
+            for page in fixtures:
+                (pages / f"{page['id']}.json").write_text(json.dumps(page), encoding="utf-8")
+                manifest_pages[str(page["id"])] = {"status": "active"}
+            (cache_root / "1" / "manifest.json").write_text(
+                json.dumps({"schema_version": 1, "root_id": 1, "pages": manifest_pages}), encoding="utf-8"
+            )
             policy = SnapshotPolicy(McpConfig(cache_root=cache_root, allowed_root_ids=frozenset({"1"})))
             SnapshotIndexer(SnapshotRepository(policy), policy).build("1")
 
             report = evaluate_snapshot(
-                (EvaluationCase(question="FWRest", expected_source_urls=frozenset({"https://fixture/10"})),),
+                (
+                    EvaluationCase(question="MATA103", expected_source_urls=frozenset({"https://fixture/mata103"})),
+                    EvaluationCase(question="PLRSTPR1", expected_source_urls=frozenset({"https://fixture/plrstpr1"})),
+                    EvaluationCase(question="MT103VALIDAITENSXYZ", expected_source_urls=frozenset()),
+                ),
                 search=SnapshotSearch(policy), policy=policy, root_id="1",
             )
 
         self.assertEqual(report.citation_recall, 1.0)
+        self.assertEqual(report.no_evidence_accuracy, 1.0)
         self.assertEqual(report.exact_source_rate, 1.0)
 
 

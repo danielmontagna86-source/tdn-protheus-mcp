@@ -20,8 +20,14 @@ jobs:
           cache: pip
       - name: Verify release version
         run: test "v$(tr -d '\n' < VERSION)" = "${GITHUB_REF_NAME}"
-      - name: Install and test
-        run: python -m pip install --upgrade pip && python -m pip install ".[snapshot]" build twine cyclonedx-bom && python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Install validation dependencies
+        run: python -m pip install --upgrade pip && python -m pip install . build twine cyclonedx-bom coverage ruff pip-audit
+      - name: Validate quality gates
+        run: |
+          python -m ruff check tdn_protheus_mcp tests examples
+          python -m coverage run --branch -m unittest discover -s tests -p 'test_*.py' -v
+          python -m coverage report --fail-under=75
+          python -m pip_audit
       - name: Build release assets
         run: |
           mkdir -p dist

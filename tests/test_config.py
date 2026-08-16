@@ -1,66 +1,45 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-
-ROOT = Path(__file__).parents[1]
-sys.path.insert(0, str(ROOT))
-
-from tdn_protheus_mcp.config import ConfigError, load_config  # noqa: E402
+from tdn_protheus_mcp.config import ConfigError, load_config
 
 
 class ConfigTests(unittest.TestCase):
-    def test_load_config_defaults_to_offline_and_limits_results(self) -> None:
+    def test_load_config_defaults_to_read_only_and_limits_results(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "mcp.json"
-            cache_root = Path(temp_dir) / "cache"
-            cache_root.mkdir()
-            config_path.write_text(json.dumps({"cache_root": str(cache_root), "allowed_root_ids": ["235312129"]}), encoding="utf-8")
-
-            config = load_config(config_path)
-
-            self.assertTrue(config.offline)
+            path = Path(temp_dir) / "mcp.json"
+            path.write_text(json.dumps({"cache_root": temp_dir, "allowed_root_ids": ["235312129"]}), encoding="utf-8")
+            config = load_config(path)
             self.assertEqual(config.allowed_root_ids, frozenset({"235312129"}))
             self.assertEqual(config.max_results, 20)
-            self.assertEqual(config.max_chars, 24000)
 
-    def test_load_config_rejects_unknown_fields(self) -> None:
+    def test_load_config_accepts_explicit_read_only_legacy_flags(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "mcp.json"
-            config_path.write_text(json.dumps({"cache_root": temp_dir, "allowed_root_ids": ["1"], "unsafe": True}), encoding="utf-8")
+            path = Path(temp_dir) / "mcp.json"
+            path.write_text(json.dumps({"cache_root": temp_dir, "allowed_root_ids": [1], "offline": True, "allow_mutations": False}), encoding="utf-8")
+            self.assertEqual(load_config(path).allowed_root_ids, frozenset({"1"}))
 
-            with self.assertRaisesRegex(ConfigError, "CONFIG_UNKNOWN_FIELD"):
-                load_config(config_path)
+    def test_load_config_rejects_mutable_or_online_mode(self) -> None:
+        for extra in ({"offline": False}, {"allow_mutations": True}):
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as temp_dir:
+                path = Path(temp_dir) / "mcp.json"
+                path.write_text(json.dumps({"cache_root": temp_dir, "allowed_root_ids": ["1"], **extra}), encoding="utf-8")
+                with self.assertRaisesRegex(ConfigError, "CONFIG_READ_ONLY_REQUIRED"):
+                    load_config(path)
 
-    def test_load_config_rejects_non_numeric_root_ids(self) -> None:
+    def test_load_config_rejects_unknown_and_non_numeric_roots(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "mcp.json"
-            config_path.write_text(json.dumps({"cache_root": temp_dir, "allowed_root_ids": ["../escape"]}), encoding="utf-8")
-
+            path = Path(temp_dir) / "mcp.json"
+            path.write_text(json.dumps({"cache_root": temp_dir, "allowed_root_ids": ["../escape"]}), encoding="utf-8")
             with self.assertRaisesRegex(ConfigError, "CONFIG_INVALID_ROOTS"):
-                load_config(config_path)
-
-    def test_load_config_accepts_an_explicit_public_refresh_endpoint(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "mcp.json"
-            config_path.write_text(
-                json.dumps({
-                    "cache_root": temp_dir,
-                    "allowed_root_ids": ["1"],
-                    "tdn_api_base": "https://mirror.example/rest/api",
-                    "refresh_timeout_seconds": 45,
-                }),
-                encoding="utf-8",
-            )
-
-            config = load_config(config_path)
-
-            self.assertEqual(config.tdn_api_base, "https://mirror.example/rest/api")
-            self.assertEqual(config.refresh_timeout_seconds, 45)
+                load_config(path)
+            path.write_text(json.dumps({"cache_root": temp_dir, "allowed_root_ids": ["1"], "tdn_api_base": "https://example"}), encoding="utf-8")
+            with self.assertRaisesRegex(ConfigError, "CONFIG_UNKNOWN_FIELD"):
+                load_config(path)
 
 
 if __name__ == "__main__":

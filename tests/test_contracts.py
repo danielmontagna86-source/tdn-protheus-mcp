@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import sys
 import unittest
 from dataclasses import FrozenInstanceError
-from pathlib import Path
 
-
-ROOT = Path(__file__).parents[1]
-sys.path.insert(0, str(ROOT))
-
-from tdn_protheus_mcp.contracts import ContextBundle, SearchQuery, SearchResult, SnapshotStatus  # noqa: E402
+from tdn_protheus_mcp.contracts import (
+    ContextBundle,
+    SearchQuery,
+    SearchResult,
+    SnapshotStatus,
+)
 
 
 class ContractsTests(unittest.TestCase):

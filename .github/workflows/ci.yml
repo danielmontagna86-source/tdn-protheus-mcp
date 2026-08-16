@@ -26,9 +26,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install validation dependencies
-        run: python -m pip install --upgrade pip && python -m pip install ".[snapshot]" build twine cyclonedx-bom
-      - name: Run tests
-        run: python -m unittest discover -s tests -p "test_*.py" -v
+        run: python -m pip install --upgrade pip && python -m pip install . build twine cyclonedx-bom coverage ruff pip-audit
+      - name: Static analysis
+        run: python -m ruff check tdn_protheus_mcp tests examples --output-format=github
+      - name: Run tests with coverage
+        run: python -m coverage run --branch -m unittest discover -s tests -p "test_*.py" -v
+      - name: Coverage report
+        run: python -m coverage report --fail-under=75
+      - name: Audit installed runtime package
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: python -m pip_audit
       - name: Verify generic MCP stdio client interface
         run: python examples/mcp_smoke_client.py --help
       - name: Build and validate Python distributions

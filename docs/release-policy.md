@@ -1,7 +1,10 @@
 # Política de release e suporte
 
-O projeto usa versionamento semântico. Correções compatíveis usam patch; novos comandos, tools ou campos opcionais usam minor; remoções ou mudanças incompatíveis exigem major ou período de depreciação documentado.
-
-Cada release deve incluir testes offline verdes, CI em Windows/macOS/Linux, wheel, sdist, SBOM, checksums e notas no CHANGELOG. Issues devem conter versão, sistema operacional, comando sem segredos, saída sanitizada e passos de reprodução. Não envie snapshot, HTML TDN, `.env`, token ou dados de cliente.
-
-O suporte é comunitário e best effort. Vulnerabilidades seguem [SECURITY.md](../SECURITY.md).
+- O MCP é estritamente local, `stdio` e somente leitura.
+- Toda release deve passar a matriz Python 3.11/3.12 em Linux, Windows e macOS.
+- Cobertura de branch mínima: 75%.
+- Wheel e sdist precisam passar `twine check`.
+- SBOM e checksums devem acompanhar a GitHub Release.
+- Publicação PyPI usa Trusted Publishing e fonte imutável de tag.
+- Mudanças incompatíveis no contrato MCP ou formato de configuração exigem incremento de versão compatível com a política SemVer do projeto.
+- Um índice nunca pode ser considerado válido sem `snapshot_fingerprint` correspondente ao manifesto ativo.
