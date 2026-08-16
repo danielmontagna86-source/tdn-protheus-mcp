@@ -38,7 +38,7 @@ class SnapshotRepository:
         manifest_root = data.get("root_id")
         if manifest_root is not None and str(manifest_root) != normalized:
             raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", "root_id do manifesto não corresponde à configuração")
-        if any(not str(page_id).isdigit() for page_id in data["pages"]):
+        if any(not str(page_id).isdigit() or int(str(page_id)) <= 0 for page_id in data["pages"]):
             raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", "manifest contém page_id inválido")
         return normalized, root, data
 
@@ -46,7 +46,16 @@ class SnapshotRepository:
         relative = manifest.get("page_directory", "pages")
         if not isinstance(relative, str) or not relative or Path(relative).is_absolute():
             raise PolicyRefusal("POLICY_SNAPSHOT_INVALID", "diretório de páginas inválido")
-        return self._policy.require_path(root / relative)
+        candidate = self._policy.require_path(root / relative)
+        resolved_root = root.resolve()
+        try:
+            candidate.relative_to(resolved_root)
+        except ValueError as error:
+            raise PolicyRefusal(
+                "POLICY_SNAPSHOT_INVALID",
+                "page_directory deve permanecer dentro da própria raiz do snapshot",
+            ) from error
+        return candidate
 
     @staticmethod
     def _page_id(page_id: str | int) -> str:
