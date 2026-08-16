@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from .contracts import PolicyRefusal, SnapshotStatus
 from .policy import SnapshotPolicy
