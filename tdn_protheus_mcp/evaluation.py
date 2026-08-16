@@ -1,8 +1,8 @@
 """Offline synthetic evaluation for citation and no-evidence regressions."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from .policy import SnapshotPolicy
 from .search import SnapshotSearch
@@ -24,7 +24,10 @@ class EvaluationReport:
     no_evidence_accuracy: float
 
 
-def evaluate(cases: tuple[EvaluationCase, ...], search: Callable[[str], tuple[str, ...]]) -> EvaluationReport:
+def evaluate(
+    cases: tuple[EvaluationCase, ...],
+    search: Callable[[str], tuple[str, ...]],
+) -> EvaluationReport:
     evidence_cases = 0
     citation_hits = 0
     no_evidence_cases = 0
@@ -50,13 +53,20 @@ def evaluate(cases: tuple[EvaluationCase, ...], search: Callable[[str], tuple[st
         no_evidence_cases=no_evidence_cases,
         citation_recall=citation_hits / evidence_cases if evidence_cases else 1.0,
         exact_source_rate=exact / total if total else 1.0,
-        no_evidence_accuracy=no_evidence_hits / no_evidence_cases if no_evidence_cases else 1.0,
+        no_evidence_accuracy=(
+            no_evidence_hits / no_evidence_cases if no_evidence_cases else 1.0
+        ),
     )
 
 
 def evaluate_snapshot(
-    cases: tuple[EvaluationCase, ...], *, search: SnapshotSearch, policy: SnapshotPolicy,
-    root_id: str, max_results: int = 8, max_chars: int = 12000,
+    cases: tuple[EvaluationCase, ...],
+    *,
+    search: SnapshotSearch,
+    policy: SnapshotPolicy,
+    root_id: str,
+    max_results: int = 8,
+    max_chars: int = 12000,
 ) -> EvaluationReport:
     """Exercise cases through the same bounded local search path used by MCP."""
 
