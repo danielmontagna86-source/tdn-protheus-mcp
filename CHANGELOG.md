@@ -2,7 +2,15 @@
 
 Todas as mudanças relevantes deste projeto serão registradas neste arquivo.
 
-O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/). 
+O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
+
+## [0.3.1] - 2026-08-16
+
+### Fixed
+
+- A indexação de snapshot inexistente retorna o erro de política estruturado `POLICY_SNAPSHOT_NOT_FOUND`.
+- A derivação de rotina em snapshots v1 cobre identificadores documentais como `PLRSTPR1`.
+- O modo offline recusa refresh antes de inicializar o coletor HTTP.
 
 ## [0.3.0] - 2026-08-15
 
