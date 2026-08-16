@@ -2,8 +2,6 @@
 
 Todas as mudanças relevantes deste projeto serão registradas neste arquivo.
 
-O formato segue Keep a Changelog e Semantic Versioning.
-
 ## [Unreleased]
 
 ### Changed
@@ -12,7 +10,8 @@ O formato segue Keep a Changelog e Semantic Versioning.
 - Índice FTS5 agora é vinculado ao fingerprint do snapshot e buscas recusam índice desatualizado com `POLICY_INDEX_STALE`.
 - Metadados de módulo, tabela, parâmetro, rotina e ponto de entrada passam a ser derivados durante a indexação.
 - Filtros de busca são aplicados no SQL antes do `LIMIT`.
-- Chunking passou a respeitar preferencialmente quebras textuais e pequeno overlap.
+- Chunking passou a respeitar preferencialmente quebras textuais e overlap.
+- CI/release deixaram de instalar o antigo extra `[snapshot]` e passaram a exigir cobertura de branch mínima de 75%.
 
 ### Removed
 

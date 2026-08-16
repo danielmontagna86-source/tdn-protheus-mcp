@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to publish (for example, v0.3.0)
+        description: Existing release tag to publish
         required: true
         type: string
 
@@ -15,7 +15,6 @@ permissions:
 
 jobs:
   build:
-    name: Build and verify distribution
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
@@ -35,9 +34,9 @@ jobs:
           test "$(git describe --exact-match --tags HEAD)" = "$RELEASE_TAG"
           test "v$(tr -d '\n' < VERSION)" = "$RELEASE_TAG"
       - name: Install validation dependencies
-        run: python -m pip install --upgrade pip && python -m pip install ".[snapshot]" build twine
+        run: python -m pip install --upgrade pip && python -m pip install . build twine coverage
       - name: Run tests
-        run: python -m unittest discover -s tests -p 'test_*.py' -v
+        run: python -m coverage run --branch -m unittest discover -s tests -p 'test_*.py' -v && python -m coverage report --fail-under=75
       - name: Build and validate distributions
         run: python -m build && python -m twine check dist/*.whl dist/*.tar.gz
       - name: Upload distributions for publishing
@@ -48,7 +47,6 @@ jobs:
           if-no-files-found: error
 
   pypi-publish:
-    name: Publish distribution to PyPI
     needs: build
     runs-on: ubuntu-latest
     environment:
@@ -58,7 +56,7 @@ jobs:
       id-token: write
     steps:
       - name: Download distributions
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093e # v4.3.0
         with:
           name: python-distributions
           path: dist/
