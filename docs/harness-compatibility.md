@@ -1,32 +1,32 @@
 # Compatibilidade de harnesses
 
-O TDN Protheus MCP é um processo local por `stdio`. A compatibilidade é definida pelo protocolo MCP, não pelo modelo, IDE ou fornecedor.
+O TDN Protheus MCP é um processo local, somente leitura, por `stdio`. A compatibilidade é definida pelo protocolo MCP e pela capacidade do cliente de iniciar um processo local, não pelo modelo de IA.
 
 | Categoria | Exemplos | Estado | Uso |
 |---|---|---|---|
-| Referência validada | Codex, Claude Code | Suportado | Use os guias específicos do projeto. |
-| MCP `stdio` genérico | Claude Desktop, Cursor, Cline, Continue, IDEs e agentes compatíveis | Suportado pelo contrato | Use a configuração JSON genérica e o smoke client. |
-| Adaptadores de fluxo | Hermes, Antigravity | Compatível quando o harness aceitar MCP `stdio` | Use o mesmo processo; `export-hermes` é opcional para contexto JSONL. |
-| Provedor de modelo | OpenRouter | Não é harness MCP | Conecte-o por meio de um cliente MCP compatível. |
+| Clientes de referência | Codex, Claude Code | Suportado | Use os guias específicos do projeto. |
+| MCP `stdio` genérico | Claude Desktop, Cursor, Cline, Continue, IDEs e agentes compatíveis | Suportado pelo contrato | Use a configuração genérica e o smoke client. |
+| Adaptadores de fluxo | Hermes, Antigravity | Compatível quando o harness aceitar MCP `stdio` | Registre o mesmo servidor local; se o fluxo aceitar somente arquivos, use o JSONL produzido pela Skill. |
+| Provedor de modelo | OpenRouter | Não é harness MCP | Use-o por meio de um cliente que hospede MCP `stdio`. |
 
 ## Verificação independente
 
-O exemplo `examples/mcp_smoke_client.py` inicia o processo e chama `search_tdn_docs` pelo SDK MCP, sem usar um harness específico:
+O exemplo `examples/mcp_smoke_client.py` inicia o processo e chama `search_tdn_docs` pelo SDK MCP:
 
 ```bash
 python examples/mcp_smoke_client.py --config ./tdn-protheus-mcp.config.json --root-id 235312129 --query FWRest
 ```
 
-Uma integração deve ser declarada “suportada pelo contrato” somente se aceitar comando, argumentos e ambiente para um servidor MCP `stdio`. Não prometa recursos de UI, OAuth, HTTP ou instalação automática que o harness não ofereça.
+Uma integração só deve ser declarada compatível se aceitar comando, argumentos e ambiente para um servidor MCP `stdio`. O projeto não oferece HTTP/SSE, OAuth, conta remota ou instalação automática no harness.
 
 ## Perfis de configuração
 
-- **Codex e Claude Code**: use os guias `configure-codex.md` e `configure-claude-code.md`; ambos iniciam o mesmo processo `stdio`.
-- **Hermes e Antigravity**: registre a configuração JSON genérica quando o produto permitir servidor MCP local. Se só aceitar arquivos de contexto, use `export-hermes` para gerar JSONL do cache já existente; isso não ativa rede.
-- **OpenRouter**: escolha o modelo no cliente que hospeda o MCP. OpenRouter não recebe a configuração deste servidor diretamente.
+- **Codex e Claude Code**: usam o mesmo processo `tdn-protheus-mcp serve ... --transport stdio`.
+- **Hermes e Antigravity**: use MCP `stdio` quando suportado. Para fluxos baseados em arquivo, gere JSONL com o `tdn-protheus-skill-kit`; o MCP não exporta nem grava arquivos de contexto.
+- **OpenRouter**: selecione o modelo no cliente que hospeda o MCP. OpenRouter não recebe diretamente a configuração deste servidor.
 
 ## Skill complementar
 
-Para padronizar a coleta e a manutenção do snapshot, instale separadamente a skill [`coletando-documentacao-tdn-protheus`](companion-skill.md). Ela é opcional, funciona em Codex, Claude Code, Antigravity e loaders compatíveis, e produz o snapshot schema-v1 que o MCP `0.3.x` aceita. A skill não é empacotada no servidor MCP e não altera sua política offline/read-only.
+A Skill [`coletando-documentacao-tdn-protheus`](companion-skill.md) é o único componente responsável por localizar, coletar e atualizar snapshots. Ela produz snapshots schema v2 e mantém leitura/migração de v1. O MCP aceita v1/v2, lê `page_directory` quando presente e nunca escreve o snapshot.
 
-Para atualizar um snapshot, altere conscientemente `offline` para `false` e `allow_mutations` para `true`, defina `tdn_api_base` se usar um espelho HTTPS e execute `apply-refresh --confirm APPLY`. Consultas e inicialização permanecem offline por padrão.
+Depois de qualquer snapshot ou refresh da Skill, execute novamente `tdn-protheus-mcp index`. Se o manifesto mudou, uma consulta com índice antigo é recusada com `POLICY_INDEX_STALE`.
