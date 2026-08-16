@@ -16,7 +16,7 @@ from .snapshot_repository import SnapshotRepository
 
 SCHEMA_VERSION = 1
 CHUNK_SIZE = 2_000
-_ROUTINE = re.compile(r"\b(?:MATA|FINA|CTBA|FISA|ATFA|CNTA|SPED)[A-Z0-9]{3,}\b", re.I)
+_ROUTINE = re.compile(r"\b[A-Z]{3,10}[0-9][A-Z0-9]*\b", re.I)
 
 
 @dataclass(frozen=True)
