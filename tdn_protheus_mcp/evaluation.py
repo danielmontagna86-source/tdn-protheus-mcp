@@ -1,5 +1,4 @@
-"""Offline synthetic evaluation for citation regressions."""
-
+"""Offline synthetic evaluation for citation and no-evidence regressions."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,28 +17,48 @@ class EvaluationCase:
 @dataclass(frozen=True)
 class EvaluationReport:
     cases: int
+    evidence_cases: int
+    no_evidence_cases: int
     citation_recall: float
     exact_source_rate: float
+    no_evidence_accuracy: float
 
 
 def evaluate(cases: tuple[EvaluationCase, ...], search: Callable[[str], tuple[str, ...]]) -> EvaluationReport:
-    hits = 0
+    evidence_cases = 0
+    citation_hits = 0
+    no_evidence_cases = 0
+    no_evidence_hits = 0
     exact = 0
     for case in cases:
         actual = frozenset(search(case.question))
-        if case.expected_source_urls <= actual:
-            hits += 1
-        if actual == case.expected_source_urls:
+        expected = case.expected_source_urls
+        if expected:
+            evidence_cases += 1
+            if expected <= actual:
+                citation_hits += 1
+        else:
+            no_evidence_cases += 1
+            if not actual:
+                no_evidence_hits += 1
+        if actual == expected:
             exact += 1
     total = len(cases)
-    return EvaluationReport(total, hits / total if total else 1.0, exact / total if total else 1.0)
+    return EvaluationReport(
+        cases=total,
+        evidence_cases=evidence_cases,
+        no_evidence_cases=no_evidence_cases,
+        citation_recall=citation_hits / evidence_cases if evidence_cases else 1.0,
+        exact_source_rate=exact / total if total else 1.0,
+        no_evidence_accuracy=no_evidence_hits / no_evidence_cases if no_evidence_cases else 1.0,
+    )
 
 
 def evaluate_snapshot(
     cases: tuple[EvaluationCase, ...], *, search: SnapshotSearch, policy: SnapshotPolicy,
     root_id: str, max_results: int = 8, max_chars: int = 12000,
 ) -> EvaluationReport:
-    """Exercise evaluation cases through the same bounded local search path used by MCP."""
+    """Exercise cases through the same bounded local search path used by MCP."""
 
     def source_urls(question: str) -> tuple[str, ...]:
         request = policy.search_query(question, root_id, max_results, max_chars)
